@@ -1,0 +1,61 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: logiclabs-db
+    environment:
+      - POSTGRES_USER=autoexam
+      - POSTGRES_PASSWORD=autoexam_secret
+      - POSTGRES_DB=autoexam
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - logiclabs-network
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: logiclabs-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /app/__pycache__
+    environment:
+      - PYTHONUNBUFFERED=1
+      - DATABASE_URL=postgresql://autoexam:autoexam_secret@db:5432/autoexam
+    networks:
+      - logiclabs-network
+    depends_on:
+      - db
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: logiclabs-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost:8000
+      - WATCHPACK_POLLING=true
+      - WDS_SOCKET_PORT=3000
+    networks:
+      - logiclabs-network
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+networks:
+  logiclabs-network:
+    driver: bridge
+
+volumes:
+  pgdata:

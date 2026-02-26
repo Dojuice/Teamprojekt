@@ -1,0 +1,140 @@
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 48px;
+  padding: 0 24px;
+  background: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0;
+  margin: -20px -20px 16px -20px;
+}
+
+/* Left group: menu + logo */
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-menu-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border: none;
+  background: none;
+  color: #5f6368;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: background 0.2s, color 0.2s;
+}
+
+.header-menu-btn:hover {
+  background: #f1f3f4;
+  color: #1a1a2e;
+}
+
+/* Logo */
+.header-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-logo-icon {
+  width: 32px;
+  height: 32px;
+}
+
+.header-logo-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+}
+
+.header-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #1a1a2e;
+  letter-spacing: 1.5px;
+}
+
+.header-subtitle {
+  font-size: 9px;
+  font-weight: 600;
+  color: #555;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+}
+
+/* Info button */
+.header-info-wrapper {
+  position: relative;
+}
+
+.header-info-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: none;
+  color: #5f6368;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: background 0.2s, color 0.2s;
+}
+
+.header-info-btn:hover {
+  background: #f1f3f4;
+  color: #1a73e8;
+}
+
+/* Info hover card */
+.header-info-card {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  width: 280px;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  animation: infoFadeIn 0.15s ease;
+}
+
+.header-info-card h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.header-info-card p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #5f6368;
+  line-height: 1.45;
+}
+
+.header-info-card .info-version {
+  margin: 8px 0 0;
+  font-size: 11px;
+  color: #9aa0a6;
+}
+
+@keyframes infoFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
