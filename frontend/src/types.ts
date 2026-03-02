@@ -4,12 +4,24 @@ export interface FileAttachment {
   file: File;
 }
 
+export interface UploadProgress {
+  total: number;
+  uploaded: number;
+  currentFile: string;
+  status: 'uploading' | 'done' | 'error';
+  errors: string[];
+}
+
 export interface ChatMessageData {
   id: number;
   sender: 'bot' | 'user';
   text: string;
   files: FileAttachment[];
   streaming?: boolean;
+  isLoading?: boolean;
+  isError?: boolean;
+  downloadUrl?: string;
+  downloadLabel?: string;
 }
 
 export interface ChatSummary {
@@ -17,4 +29,13 @@ export interface ChatSummary {
   title: string;
   created_at: string;
   updated_at: string;
+}
+
+export type AIModel = string;
+
+export interface AIModelOption {
+  id: AIModel;
+  label: string;
+  description: string;
+  free: boolean;
 }

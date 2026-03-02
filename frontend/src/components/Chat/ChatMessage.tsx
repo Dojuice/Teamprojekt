@@ -8,15 +8,14 @@ interface ChatMessageProps {
 
 const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   const isBot = message.sender === 'bot';
+  const shouldStream = isBot && message.streaming === true;
   const [displayedText, setDisplayedText] = useState<string>(
-    isBot && message.streaming !== false ? '' : message.text
+    shouldStream ? '' : message.text
   );
-  const [isStreaming, setIsStreaming] = useState<boolean>(
-    isBot && message.streaming !== false
-  );
+  const [isStreaming, setIsStreaming] = useState<boolean>(shouldStream);
 
   useEffect(() => {
-    if (!isBot || message.streaming === false) {
+    if (!shouldStream) {
       setDisplayedText(message.text);
       setIsStreaming(false);
       return;
@@ -37,7 +36,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
     }, 15);
 
     return () => clearInterval(interval);
-  }, [message.text, isBot, message.streaming]);
+  }, [message.text, shouldStream]);
 
   return (
     <div className={`chat-message ${isBot ? 'bot' : 'user'}`}>
@@ -58,11 +57,26 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
         )}
       </div>
       <div className="message-content">
-        <span className="message-sender">{isBot ? 'AutoExam' : 'Du'}</span>
-        <div className="message-text">
+        <div className={`message-text ${message.isError ? 'error-message' : ''}`}>
           {displayedText}
           {isStreaming && <span className="streaming-cursor" />}
         </div>
+        {message.downloadUrl && (
+          <a
+            href={message.downloadUrl}
+            className="download-button"
+            download
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            {message.downloadLabel || 'PDF herunterladen'}
+          </a>
+        )}
         {message.files && message.files.length > 0 && (
           <div className="message-files">
             {message.files.map((file, index) => (

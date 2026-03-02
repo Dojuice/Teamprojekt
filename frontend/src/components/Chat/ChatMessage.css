@@ -33,19 +33,11 @@
   max-width: 70%;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 0;
 }
 
 .chat-message.user .message-content {
   align-items: flex-end;
-}
-
-.message-sender {
-  font-size: 12px;
-  font-weight: 600;
-  color: #5f6368;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
 }
 
 .message-text {
@@ -111,5 +103,98 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/* Typing indicator */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 14px 18px !important;
+}
+
+.typing-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: #9aa0a6;
+  animation: typingBounce 1.4s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes typingBounce {
+  0%, 60%, 100% {
+    transform: translateY(0);
+    opacity: 0.4;
+  }
+  30% {
+    transform: translateY(-6px);
+    opacity: 1;
+  }
+}
+
+/* Error message styling */
+.chat-message.bot .message-text.error-message {
+  background-color: #fce8e6;
+  color: #c5221f;
+  border: 1px solid #f5c6cb;
+}
+
+/* Download button */
+.download-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 16px;
+  background-color: #1a73e8;
+  color: white;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  width: fit-content;
+}
+
+.download-button:hover {
+  background-color: #1557b0;
+  transform: translateY(-1px);
+}
+
+.download-button:active {
+  transform: translateY(0);
+}
+
+.download-button svg {
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .chat-message {
+    padding: 12px 12px;
+  }
+
+  .message-content {
+    max-width: 85%;
+  }
+
+  .message-avatar {
+    width: 30px;
+    height: 30px;
+  }
+
+  .message-text {
+    font-size: 13px;
+    padding: 10px 12px;
   }
 }

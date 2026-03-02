@@ -24,30 +24,38 @@
 
 ### 2.2 Datei-Upload
 - [x] API-Endpunkt für einzelnen Datei-Upload (`POST /api/upload`) – Grundgerüst
-- [ ] API-Endpunkt für mehrere PDFs / Ordner-Upload (`POST /api/upload-batch`)
-- [ ] Datei-Validierung (nur PDF erlaubt)
-- [ ] Temporäre Speicherung der hochgeladenen Dateien
+- [x] API-Endpunkt für mehrere PDFs / Ordner-Upload (`POST /api/chats/{id}/upload`)
+- [x] Datei-Validierung (nur PDF erlaubt)
+- [x] Temporäre Speicherung der hochgeladenen Dateien
 
 ### 2.3 OCR-Integration
-- [ ] OCR-Service implementieren (EasyOCR oder OpenAI Vision)
-- [ ] PDF → Bild-Konvertierung (pdf2image / PyMuPDF)
-- [ ] Text-Extraktion aus handschriftlichen Antworten
-- [ ] Qualitätsprüfung der OCR-Ergebnisse
+- [x] OCR-Service implementieren (OpenAI Vision via GPT-4o)
+- [x] PDF → Bild-Konvertierung (PyMuPDF/fitz)
+- [x] Text-Extraktion aus handschriftlichen Antworten
+- [x] Qualitätsprüfung der OCR-Ergebnisse (direct vs. Vision fallback)
+- [x] Google Gemini Vision als alternatives OCR-Backend
 
 ### 2.4 KI-Bewertung
-- [ ] OpenAI API-Anbindung (GPT-4 / Vision)
-- [ ] Musterlösung-Verwaltung (Upload / Speicherung)
-- [ ] Prompt-Engineering für semantischen Vergleich
-- [ ] Bewertungslogik:
+- [x] OpenAI API-Anbindung (GPT-4o / Vision)
+- [x] Google Gemini API-Anbindung (Gemini 2.0 Flash – kostenlos)
+- [x] Multi-Model-Architektur (zur Laufzeit zwischen OpenAI und Gemini wechselbar)
+- [x] Musterlösung-Verwaltung (Upload / Speicherung)
+- [x] Prompt-Engineering für semantischen Vergleich
+- [x] Bewertungslogik:
   - Korrektheitsscore (0–100%)
   - Fehlende Elemente identifizieren
   - Begründung / Erklärung generieren
-- [ ] Ergebnis als strukturiertes JSON zurückgeben
+- [x] Ergebnis als strukturiertes JSON zurückgeben
 
 ### 2.5 Ergebnis-Download
-- [ ] Korrigierte Klausur als PDF generieren (Bewertung + Kommentare)
-- [ ] API-Endpunkt für Download (`GET /api/download/{id}`)
-- [ ] Batch-Download als ZIP bei mehreren Klausuren
+- [x] Korrigierte Klausur als PDF generieren (Bewertung + Kommentare)
+- [x] API-Endpunkt für Download (`GET /api/download/{id}`)
+- [x] Batch-Download als ZIP bei mehreren Klausuren
+
+### 2.6 Konfiguration & Umgebung
+- [x] API-Keys über `.env` im Backend verwaltet (python-dotenv)
+- [x] `.env.example` mit Platzhaltern für Teammitglieder
+- [x] Docker-Compose referenziert keine API-Keys mehr (Backend lädt eigene `.env`)
 
 ## Phase 3: Frontend-Entwicklung (React)
 
@@ -64,19 +72,30 @@
 - [x] Datei-Upload im Chat (Klausur- & Lösungs-Buttons in Prompt-Leiste)
   - [x] Einzelne Dateien
   - [x] Mehrere Dateien
+  - [x] Ordner-Upload (alle PDFs aus Ordner)
 - [x] Sidebar mit Chat-Verlauf (erstellen, auswählen, löschen)
 - [x] Chat-Nachrichten werden in DB persistiert
-- [ ] Upload-Fortschrittsanzeige
-- [ ] Bot-Antwort mit echtem Bewertungsergebnis (aktuell simulierte Antwort)
-- [ ] Download-Button in der Bot-Antwort (korrigierte Klausur)
+- [x] Upload-Fortschrittsanzeige
+- [x] Bot-Antwort mit echtem Bewertungsergebnis
+- [x] Download-Button in der Bot-Antwort (korrigierte Klausur)
 
-### 3.3 Styling & UX
+### 3.3 KI-Modellauswahl
+- [x] Model-Selector Dropdown in der Prompt-Leiste
+- [x] Gemini 2.0 Flash als kostenloser Standard voreingestellt
+- [x] GPT-4o als Premium-Option wählbar
+- [x] Modell-Auswahl wird an Backend-API übergeben (`model` Query-Parameter)
+
+### 3.4 Styling & UX
 - [x] Grundlegendes Styling (CSS für alle Komponenten)
 - [x] Tooltips für Prompt-Buttons
-- [ ] Responsive Design (Desktop & Tablet)
-- [ ] Lade-Animationen während der Korrektur
-- [ ] Fehlerbehandlung & Fehlermeldungen im Chat
-- [ ] Drag & Drop für Datei-Upload
+- [x] Farbige Buttons für Klausur (blau) / Lösung (grün) Unterscheidung
+- [x] Cleane Chat-Ansicht (ohne Border, ohne Sender-Namen)
+- [x] Responsive Design (Desktop & Tablet)
+- [x] Lade-Animationen während der Korrektur
+- [x] Fehlerbehandlung & Fehlermeldungen im Chat
+- [x] Drag & Drop für Datei-Upload
+- [x] Aufeinanderfolgende Bot-Nachrichten werden kompaktiert (in eine Nachricht zusammengefasst)
+- [x] Streaming-Animation nur für neue Nachrichten (nicht beim Laden alter Chats)
 
 ## Phase 4: Integration & Testing
 
@@ -104,9 +123,10 @@
 | Backend         | Python + FastAPI             |
 | Datenbank       | PostgreSQL 16 (Docker)       |
 | ORM             | SQLAlchemy 2.0               |
-| KI / LLM       | OpenAI API (GPT-4) – geplant|
-| OCR             | EasyOCR / OpenAI Vision – geplant |
-| PDF-Verarbeitung| PyMuPDF / pdf2image – geplant|
+| KI / LLM       | OpenAI API (GPT-4o) + Google Gemini 2.0 Flash |
+| OCR             | OpenAI Vision + Gemini Vision + PyMuPDF       |
+| PDF-Verarbeitung| PyMuPDF (fitz)               |
+| PDF-Generierung | ReportLab                    |
 | API-Doku        | Swagger (FastAPI built-in)   |
 | Containerisierung| Docker Compose              |
 
@@ -116,7 +136,7 @@
 |--------------------------------------|---------------|--------------|
 | Projektsetup abgeschlossen          | Woche 1       | ✅ Erledigt  |
 | Chatbot-UI mit DB-Anbindung         | Woche 2       | ✅ Erledigt  |
-| Backend-API (Upload + OCR) lauffähig | Woche 3–4     | 🔲 Offen     |
-| KI-Bewertung funktionsfähig         | Woche 4–5     | 🔲 Offen     |
+| Backend-API (Upload + OCR) lauffähig | Woche 3–4     | ✅ Erledigt  |
+| KI-Bewertung funktionsfähig         | Woche 4–5     | ✅ Erledigt  |
 | Integration & Testing               | Woche 5–6     | 🔲 Offen     |
 | MVP fertig & Präsentation           | Woche 7       | 🔲 Offen     |

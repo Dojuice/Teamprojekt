@@ -5,4 +5,19 @@
   background-color: #ffffff;
   padding: 20px;
   box-sizing: border-box;
+  transition: margin-left 0.25s ease;
+}
+
+.app.sidebar-open {
+  margin-left: 280px;
+}
+
+@media (max-width: 768px) {
+  .app {
+    padding: 8px;
+  }
+
+  .app.sidebar-open {
+    margin-left: 0;
+  }
 }

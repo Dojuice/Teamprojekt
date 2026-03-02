@@ -24,6 +24,7 @@ services:
     volumes:
       - ./backend:/app
       - /app/__pycache__
+      - uploads:/app/uploads
     environment:
       - PYTHONUNBUFFERED=1
       - DATABASE_URL=postgresql://autoexam:autoexam_secret@db:5432/autoexam
@@ -59,3 +60,4 @@ networks:
 
 volumes:
   pgdata:
+  uploads:

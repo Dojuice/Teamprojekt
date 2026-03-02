@@ -5,8 +5,6 @@
   flex-direction: column;
   width: 70%;
   margin: 0 auto 16px auto;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px;
 }
 
 .chat-messages {
@@ -31,4 +29,17 @@
 
 .chat::-webkit-scrollbar-thumb:hover {
   background-color: #bdc1c6;
+}
+
+@media (max-width: 1024px) {
+  .chat {
+    width: 85%;
+  }
+}
+
+@media (max-width: 768px) {
+  .chat {
+    width: 95%;
+    margin-bottom: 8px;
+  }
 }
