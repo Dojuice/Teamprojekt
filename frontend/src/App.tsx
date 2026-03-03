@@ -15,7 +15,7 @@ const App: React.FC = () => {
   const [activeChatId, setActiveChatId] = useState<number | null>(null);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [isBotTyping, setIsBotTyping] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<AIModel>('google/gemini-3-flash-preview');
+  const [selectedModel, setSelectedModel] = useState<AIModel>('openai/gpt-5.3-codex');
   const [evalProgress, setEvalProgress] = useState<EvalProgress | null>(null);
 
   // Load welcome message for a fresh (unsaved) state

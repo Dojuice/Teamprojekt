@@ -3,13 +3,8 @@ import { FileAttachment, UploadProgress, AIModel, AIModelOption } from '../../ty
 import './Prompt.css';
 
 const MODEL_OPTIONS: AIModelOption[] = [
-  { id: 'google/gemini-3-flash-preview', label: 'Gemini 3 Flash', description: 'Google – günstig', free: false },
-  { id: 'google/gemini-3.1-pro-preview', label: 'Gemini 3.1 Pro', description: 'Google – leistungsstark', free: false },
   { id: 'openai/gpt-5.3-codex', label: 'GPT-5.3 Codex', description: 'OpenAI – neuestes Modell', free: false },
   { id: 'openai/gpt-5.2-codex', label: 'GPT-5.2 Codex', description: 'OpenAI', free: false },
-  { id: 'openai/gpt-5.2', label: 'GPT-5.2 Thinking', description: 'OpenAI', free: false },
-  { id: 'anthropic/claude-sonnet-4.6', label: 'Claude Sonnet 4.6', description: 'Anthropic', free: false },
-  { id: 'anthropic/claude-opus-4.6', label: 'Claude Opus 4.6', description: 'Anthropic – stärkstes Modell', free: false },
 ];
 
 interface PromptProps {

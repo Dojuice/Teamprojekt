@@ -315,7 +315,7 @@ def list_chat_files(chat_id: int, db: Session = Depends(get_db)):
 async def evaluate_chat_exams(
     chat_id: int,
     additional_instructions: str = Query(default=""),
-    model: str = Query(default="google/gemini-3-flash-preview"),
+    model: str = Query(default="openai/gpt-5.3-codex"),
     db: Session = Depends(get_db),
 ):
     """Evaluate uploaded exams against uploaded solution(s) with streaming progress.
@@ -343,35 +343,63 @@ async def evaluate_chat_exams(
 
     async def generate():
         # Step 1: Extract text from solution(s)
+        print(f"\n{'='*70}")
+        print(f"  BEWERTUNG GESTARTET – Chat {chat_id}")
+        print(f"  {total_exams} Klausur(en), {len(solution_files)} Musterlösung(en)")
+        print(f"  Modell: {model}")
+        print(f"  Extraktions-Methode: AI Vision OCR")
+        print(f"{'='*70}")
+
         yield json.dumps({"type": "progress", "step": "ocr_solution", "label": "Musterlösung wird eingelesen...", "current": 0, "total": total_exams}) + "\n"
 
+        print(f"\n[1/3] MUSTERLÖSUNG EINLESEN")
         solution_texts: List[str] = []
-        for sol_file in solution_files:
+        for sol_idx, sol_file in enumerate(solution_files, 1):
+            sol_name = "_".join(sol_file.name.split("_")[1:])
+            print(f"  → Musterlösung ({sol_idx}/{len(solution_files)}): {sol_name}")
             try:
                 result = await extract_text_from_pdf(str(sol_file), context="solution", model=model)
                 solution_texts.append(result["text"])
+                print(f"    ✓ Extrahiert ({result['method']}, {result['page_count']} Seiten, {len(result['text'])} Zeichen)")
             except Exception as e:
+                print(f"    ✗ FEHLER: {str(e)}")
                 yield json.dumps({"type": "error", "message": f"Fehler beim Lesen der Musterlösung {sol_file.name}: {str(e)}"}) + "\n"
                 return
 
         if not solution_texts:
+            print(f"  ✗ Keine gültige Musterlösung gefunden!")
             yield json.dumps({"type": "error", "message": "Keine gültige Musterlösung gefunden."}) + "\n"
             return
 
         combined_solution = "\n\n---\n\n".join(solution_texts)
+        print(f"  ✓ Musterlösung bereit ({len(combined_solution)} Zeichen)")
 
-        # Step 2: Extract text from each exam
+        # Step 2: Extract text from each exam + Step 3: Evaluate each exam
+        print(f"\n[2/3] TEXT EXTRAHIEREN & [3/3] KORREKTUR")
         results = []
         for i, exam_file in enumerate(exam_files):
             original_name = "_".join(exam_file.name.split("_")[1:])
 
+            # --- OCR Progress ---
+            print(f"\n  ── Klausur ({i+1}/{total_exams}): {original_name} ──")
+            print(f"  [OCR] Extrahiere Text...")
             yield json.dumps({"type": "progress", "step": "ocr", "label": f"Text wird extrahiert: {original_name}", "current": i + 1, "total": total_exams}) + "\n"
 
             try:
-                ocr_result = await extract_text_from_pdf(str(exam_file), context="exam", force_vision=False, model=model)
+                ocr_result = await extract_text_from_pdf(str(exam_file), context="exam", model=model)
                 exam_text = ocr_result["text"]
 
-                # Step 3: Evaluate
+                print(f"  [OCR] ✓ Methode: {ocr_result['method']}, Seiten: {ocr_result['page_count']}, Zeichen: {len(exam_text)}")
+
+                # --- Show extracted text per exercise ---
+                print(f"  [OCR] Extrahierter Text:")
+                print(f"  {'─'*60}")
+                for line in exam_text.split('\n'):
+                    print(f"  │ {line}")
+                print(f"  {'─'*60}")
+
+                # --- Evaluation Progress ---
+                print(f"  [EVAL] Korrektur via API ({model})...")
                 yield json.dumps({"type": "progress", "step": "eval", "label": f"Klausur wird korrigiert: {original_name}", "current": i + 1, "total": total_exams}) + "\n"
 
                 evaluation = await evaluate_exam(
@@ -380,6 +408,20 @@ async def evaluate_chat_exams(
                     additional_instructions=additional_instructions,
                     model=model,
                 )
+
+                # --- Show evaluation result ---
+                student_name = evaluation.get("student_name", "Unbekannt")
+                overall_grade = evaluation.get("overall_grade", "–")
+                overall_score = evaluation.get("overall_score", 0)
+                total_pts = evaluation.get("total_points", "–")
+                max_pts = evaluation.get("max_points", "–")
+                print(f"  [EVAL] ✓ Ergebnis: {student_name} → Note {overall_grade} ({overall_score}%, {total_pts}/{max_pts} Punkte)")
+                for task in evaluation.get("tasks", []):
+                    t_num = task.get("task_number", "?")
+                    t_pts = task.get("points_achieved", "?")
+                    t_max = task.get("points_max", "?")
+                    t_status = task.get("status", "?")
+                    print(f"       Aufgabe {t_num}: {t_pts}/{t_max} Pkt. ({t_status})")
 
                 results.append({
                     "filename": original_name,
@@ -391,6 +433,7 @@ async def evaluate_chat_exams(
                 })
 
             except Exception as e:
+                print(f"  ✗ FEHLER bei {original_name}: {str(e)}")
                 results.append({
                     "filename": original_name,
                     "status": "error",
@@ -399,17 +442,35 @@ async def evaluate_chat_exams(
                 })
 
         # Step 4: Generate summary
+        successful_count = sum(1 for r in results if r["status"] == "success")
+        print(f"\n  ── Zusammenfassung ──")
+        print(f"  {successful_count}/{total_exams} Klausuren erfolgreich bewertet")
         yield json.dumps({"type": "progress", "step": "summary", "label": "Zusammenfassung wird erstellt...", "current": total_exams, "total": total_exams}) + "\n"
 
         # Save results for later PDF download
         _save_evaluation_results(chat_id, results)
+
+        print(f"\n{'='*70}")
+        print(f"  BEWERTUNG ABGESCHLOSSEN – Chat {chat_id}")
+        print(f"  {successful_count}/{total_exams} erfolgreich")
+        if successful_count > 0:
+            avg_score = sum(
+                r["evaluation"].get("overall_score", 0) 
+                for r in results if r["status"] == "success"
+            ) / successful_count
+            avg_grade = sum(
+                float(r["evaluation"].get("overall_grade", "0").replace(",", "."))
+                for r in results if r["status"] == "success"
+            ) / successful_count
+            print(f"  Durchschnitt: {avg_score:.1f}% (Note {avg_grade:.1f})")
+        print(f"{'='*70}\n")
 
         # Final result
         yield json.dumps({
             "type": "result",
             "chat_id": chat_id,
             "total_exams": total_exams,
-            "successful": sum(1 for r in results if r["status"] == "success"),
+            "successful": successful_count,
             "results": results,
         }) + "\n"
 
