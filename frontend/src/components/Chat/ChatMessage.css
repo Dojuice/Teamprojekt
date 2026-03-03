@@ -1,8 +1,13 @@
+/* ─── Base message layout ─── */
 .chat-message {
   display: flex;
   gap: 12px;
   padding: 20px 24px;
   animation: fadeIn 0.3s ease;
+}
+
+.chat-message.no-animate {
+  animation: none !important;
 }
 
 .chat-message.user {
@@ -61,7 +66,39 @@
   border-bottom-right-radius: 4px;
 }
 
-/* Streaming cursor */
+/* ─── Grouped bot messages ─── */
+.chat-message.bot.grouped {
+  padding: 20px 24px;
+}
+
+.chat-message.bot.grouped > .message-content {
+  max-width: 70%;
+  gap: 6px;
+}
+
+.grouped-message-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.grouped-message-item .message-text {
+  border-radius: 16px;
+}
+
+.grouped-message-item:first-child .message-text {
+  border-bottom-left-radius: 4px;
+}
+
+.grouped-message-item:last-child .message-text {
+  border-top-left-radius: 4px;
+}
+
+.grouped-message-item:only-child .message-text {
+  border-radius: 16px;
+  border-bottom-left-radius: 4px;
+}
+
+/* ─── Streaming cursor ─── */
 .streaming-cursor {
   display: inline-block;
   width: 2px;
@@ -76,6 +113,7 @@
   50% { opacity: 0; }
 }
 
+/* ─── File tags ─── */
 .message-files {
   display: flex;
   flex-wrap: wrap;
@@ -106,7 +144,7 @@
   }
 }
 
-/* Typing indicator */
+/* ─── Typing indicator ─── */
 .typing-indicator {
   display: flex;
   align-items: center;
@@ -141,14 +179,14 @@
   }
 }
 
-/* Error message styling */
+/* ─── Error message ─── */
 .chat-message.bot .message-text.error-message {
   background-color: #fce8e6;
   color: #c5221f;
   border: 1px solid #f5c6cb;
 }
 
-/* Download button */
+/* ─── Download button (legacy) ─── */
 .download-button {
   display: inline-flex;
   align-items: center;
@@ -179,12 +217,303 @@
   flex-shrink: 0;
 }
 
+/* ═══════════════════════════════════════════════════════════
+   Evaluation Results – Structured Output
+   ═══════════════════════════════════════════════════════════ */
+
+.eval-results {
+  width: 100%;
+}
+
+/* ── Divider ── */
+.eval-divider {
+  border: none;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  margin: 14px 0;
+}
+
+/* ── Summary section ── */
+.eval-summary {
+  text-align: center;
+}
+
+.eval-summary-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #137333;
+  margin-bottom: 12px;
+}
+
+.eval-summary-stats {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+}
+
+.eval-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.eval-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #202124;
+}
+
+.eval-stat-label {
+  font-size: 11px;
+  color: #5f6368;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Results table ── */
+.eval-table-wrapper {
+  overflow-x: auto;
+}
+
+.eval-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.eval-table thead th {
+  text-align: left;
+  padding: 8px 10px;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #5f6368;
+  border-bottom: 2px solid #e8eaed;
+}
+
+.eval-table tbody tr {
+  transition: background 0.15s;
+}
+
+.eval-table tbody tr:hover {
+  background: rgba(26, 115, 232, 0.04);
+}
+
+.eval-table tbody td {
+  padding: 10px 10px;
+  border-bottom: 1px solid #f1f3f4;
+  vertical-align: middle;
+}
+
+.eval-cell-num {
+  width: 30px;
+  color: #9aa0a6;
+  font-weight: 500;
+}
+
+.eval-cell-name {
+  font-weight: 500;
+  color: #202124;
+}
+
+.eval-cell-grade {
+  width: 60px;
+}
+
+.eval-cell-points {
+  width: 80px;
+  color: #5f6368;
+}
+
+.eval-cell-download {
+  width: 40px;
+  text-align: center;
+}
+
+.eval-row-error td {
+  color: #c5221f;
+  opacity: 0.7;
+}
+
+/* ── Grade badges ── */
+.grade-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.grade-excellent {
+  background: #e6f4ea;
+  color: #137333;
+}
+
+.grade-good {
+  background: #e8f0fe;
+  color: #1a73e8;
+}
+
+.grade-ok {
+  background: #fef7e0;
+  color: #b06000;
+}
+
+.grade-pass {
+  background: #fce8e6;
+  color: #c5221f;
+}
+
+.grade-fail {
+  background: #c5221f;
+  color: white;
+}
+
+.grade-error {
+  background: #fce8e6;
+  color: #c5221f;
+}
+
+.grade-neutral {
+  background: #f1f3f4;
+  color: #5f6368;
+}
+
+/* ── Download icon in table ── */
+.eval-download-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  color: #1a73e8;
+  transition: background 0.15s, transform 0.1s;
+  text-decoration: none;
+}
+
+.eval-download-icon:hover {
+  background: #e8f0fe;
+  transform: translateY(-1px);
+}
+
+.eval-no-download {
+  color: #dadce0;
+}
+
+/* ── Download all section ── */
+.eval-download-all-section {
+  text-align: center;
+}
+
+.eval-download-all-hint {
+  font-size: 12px;
+  color: #5f6368;
+  margin: 0 0 8px;
+}
+
+.eval-download-all-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background-color: #1a73e8;
+  color: white;
+  border-radius: 24px;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+}
+
+.eval-download-all-btn:hover {
+  background-color: #1557b0;
+  transform: translateY(-1px);
+}
+
+.eval-download-all-btn:active {
+  transform: translateY(0);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Evaluation Progress Indicator  
+   ═══════════════════════════════════════════════════════════ */
+
+.eval-progress-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 20px !important;
+  min-width: 280px;
+}
+
+.eval-progress-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #202124;
+}
+
+.eval-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #e8eaed;
+  border-top: 2px solid #1a73e8;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+.eval-progress-bar-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.eval-progress-bar {
+  flex: 1;
+  height: 6px;
+  background: #e8eaed;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.eval-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #1a73e8, #4285f4);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.eval-progress-count {
+  font-size: 12px;
+  color: #5f6368;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ─── Responsive ─── */
 @media (max-width: 768px) {
   .chat-message {
     padding: 12px 12px;
   }
 
   .message-content {
+    max-width: 85%;
+  }
+
+  .chat-message.bot.grouped > .message-content {
     max-width: 85%;
   }
 
@@ -196,5 +525,17 @@
   .message-text {
     font-size: 13px;
     padding: 10px 12px;
+  }
+
+  .eval-summary-stats {
+    gap: 16px;
+  }
+
+  .eval-stat-value {
+    font-size: 16px;
+  }
+
+  .eval-table {
+    font-size: 12px;
   }
 }

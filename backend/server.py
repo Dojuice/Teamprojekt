@@ -3,7 +3,7 @@ load_dotenv()
 
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, Response, StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 import os
@@ -103,7 +103,7 @@ async def health_check():
 @app.get("/api/welcome")
 async def welcome():
     return {
-        "message": "Hello! 👋\n\nI'm AutoExam, your AI-powered exam correction assistant. I help you automatically evaluate handwritten exams.\n\nTo get started:\n📄 Use the exam button (left) in the input bar to upload exams or a folder with multiple exams.\n✅ Use the solution button (right next to it) to upload the professor's solution.\n\nOnce both are uploaded, just send a message and I'll begin the evaluation!"
+        "message": "Hallo! 👋\n\nIch bin AutoExam, Ihr KI-gestützter Klausur-Korrektur-Assistent. Ich helfe Ihnen dabei, handschriftliche Klausuren automatisch zu bewerten.\n\nSo starten Sie:\n📄 Nutzen Sie den Klausur-Button (links) in der Eingabeleiste, um Klausuren oder einen Ordner mit mehreren Klausuren hochzuladen.\n✅ Nutzen Sie den Musterlösungs-Button (daneben), um die Musterlösung des Professors hochzuladen.\n\nSobald beides hochgeladen ist, senden Sie eine Nachricht und ich beginne mit der Bewertung!"
     }
 
 
@@ -255,6 +255,12 @@ async def upload_files(
     if file_type not in ("exam", "solution"):
         raise HTTPException(status_code=400, detail="file_type must be 'exam' or 'solution'")
 
+    # Clear previous files of this type so only the current prompt's files are used
+    type_dir = UPLOAD_DIR / str(chat_id) / file_type
+    if type_dir.exists():
+        shutil.rmtree(type_dir)
+    type_dir.mkdir(parents=True, exist_ok=True)
+
     uploaded: List[FileUploadResult] = []
     errors: List[str] = []
 
@@ -312,12 +318,9 @@ async def evaluate_chat_exams(
     model: str = Query(default="google/gemini-3-flash-preview"),
     db: Session = Depends(get_db),
 ):
-    """Evaluate all uploaded exams against the uploaded solution(s).
+    """Evaluate uploaded exams against uploaded solution(s) with streaming progress.
 
-    1. Extract text from solution PDFs (OCR if needed)
-    2. Extract text from each exam PDF (OCR if needed)
-    3. Evaluate each exam against the solution
-    4. Return structured results
+    Returns NDJSON (newline-delimited JSON) with progress events and final results.
     """
     chat = db.query(Chat).filter(Chat.id == chat_id).first()
     if not chat:
@@ -334,67 +337,83 @@ async def evaluate_chat_exams(
     if not solution_dir.exists() or not list(solution_dir.iterdir()):
         raise HTTPException(status_code=400, detail="Keine Musterlösung hochgeladen. Bitte laden Sie zuerst eine Musterlösung hoch.")
 
-    # Step 1: Extract text from solution(s)
-    solution_texts: List[str] = []
-    for sol_file in sorted(solution_dir.iterdir()):
-        if sol_file.is_file() and sol_file.suffix.lower() == ".pdf":
+    exam_files = sorted([f for f in exam_dir.iterdir() if f.is_file() and f.suffix.lower() == ".pdf"])
+    solution_files = sorted([f for f in solution_dir.iterdir() if f.is_file() and f.suffix.lower() == ".pdf"])
+    total_exams = len(exam_files)
+
+    async def generate():
+        # Step 1: Extract text from solution(s)
+        yield json.dumps({"type": "progress", "step": "ocr_solution", "label": "Musterlösung wird eingelesen...", "current": 0, "total": total_exams}) + "\n"
+
+        solution_texts: List[str] = []
+        for sol_file in solution_files:
             try:
                 result = await extract_text_from_pdf(str(sol_file), context="solution", model=model)
                 solution_texts.append(result["text"])
             except Exception as e:
-                raise HTTPException(status_code=500, detail=f"Fehler beim Lesen der Musterlösung {sol_file.name}: {str(e)}")
+                yield json.dumps({"type": "error", "message": f"Fehler beim Lesen der Musterlösung {sol_file.name}: {str(e)}"}) + "\n"
+                return
 
-    if not solution_texts:
-        raise HTTPException(status_code=400, detail="Keine gültige Musterlösung gefunden.")
+        if not solution_texts:
+            yield json.dumps({"type": "error", "message": "Keine gültige Musterlösung gefunden."}) + "\n"
+            return
 
-    combined_solution = "\n\n---\n\n".join(solution_texts)
+        combined_solution = "\n\n---\n\n".join(solution_texts)
 
-    # Step 2 & 3: Extract text from each exam and evaluate
-    results = []
-    exam_files = sorted([f for f in exam_dir.iterdir() if f.is_file() and f.suffix.lower() == ".pdf"])
+        # Step 2: Extract text from each exam
+        results = []
+        for i, exam_file in enumerate(exam_files):
+            original_name = "_".join(exam_file.name.split("_")[1:])
 
-    for i, exam_file in enumerate(exam_files):
-        original_name = "_".join(exam_file.name.split("_")[1:])  # Remove UUID prefix
+            yield json.dumps({"type": "progress", "step": "ocr", "label": f"Text wird extrahiert: {original_name}", "current": i + 1, "total": total_exams}) + "\n"
 
-        try:
-            # OCR the exam – tries free local extraction first, Vision API only as fallback
-            ocr_result = await extract_text_from_pdf(str(exam_file), context="exam", force_vision=False, model=model)
-            exam_text = ocr_result["text"]
+            try:
+                ocr_result = await extract_text_from_pdf(str(exam_file), context="exam", force_vision=False, model=model)
+                exam_text = ocr_result["text"]
 
-            # Evaluate
-            evaluation = await evaluate_exam(
-                exam_text=exam_text,
-                solution_text=combined_solution,
-                additional_instructions=additional_instructions,
-                model=model,
-            )
+                # Step 3: Evaluate
+                yield json.dumps({"type": "progress", "step": "eval", "label": f"Klausur wird korrigiert: {original_name}", "current": i + 1, "total": total_exams}) + "\n"
 
-            results.append({
-                "filename": original_name,
-                "ocr_method": ocr_result["method"],
-                "page_count": ocr_result["page_count"],
-                "evaluation": evaluation,
-                "formatted_text": format_evaluation_as_text(evaluation),
-                "status": "success",
-            })
+                evaluation = await evaluate_exam(
+                    exam_text=exam_text,
+                    solution_text=combined_solution,
+                    additional_instructions=additional_instructions,
+                    model=model,
+                )
 
-        except Exception as e:
-            results.append({
-                "filename": original_name,
-                "status": "error",
-                "error": str(e),
-                "formatted_text": f"❌ Fehler bei der Bewertung von {original_name}: {str(e)}",
-            })
+                results.append({
+                    "filename": original_name,
+                    "ocr_method": ocr_result["method"],
+                    "page_count": ocr_result["page_count"],
+                    "evaluation": evaluation,
+                    "formatted_text": format_evaluation_as_text(evaluation),
+                    "status": "success",
+                })
 
-    # Save results for later PDF download
-    _save_evaluation_results(chat_id, results)
+            except Exception as e:
+                results.append({
+                    "filename": original_name,
+                    "status": "error",
+                    "error": str(e),
+                    "formatted_text": f"Fehler bei der Bewertung von {original_name}: {str(e)}",
+                })
 
-    return {
-        "chat_id": chat_id,
-        "total_exams": len(exam_files),
-        "successful": sum(1 for r in results if r["status"] == "success"),
-        "results": results,
-    }
+        # Step 4: Generate summary
+        yield json.dumps({"type": "progress", "step": "summary", "label": "Zusammenfassung wird erstellt...", "current": total_exams, "total": total_exams}) + "\n"
+
+        # Save results for later PDF download
+        _save_evaluation_results(chat_id, results)
+
+        # Final result
+        yield json.dumps({
+            "type": "result",
+            "chat_id": chat_id,
+            "total_exams": total_exams,
+            "successful": sum(1 for r in results if r["status"] == "success"),
+            "results": results,
+        }) + "\n"
+
+    return StreamingResponse(generate(), media_type="application/x-ndjson")
 
 
 # --- Download Endpoints ---

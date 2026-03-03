@@ -12,16 +12,47 @@ export interface UploadProgress {
   errors: string[];
 }
 
+export interface EvaluationResultItem {
+  filename: string;
+  student_name: string;
+  overall_grade: string;
+  overall_score: number;
+  total_points: number | string;
+  max_points: number | string;
+  status: string;
+  error?: string;
+  downloadUrl: string;
+}
+
+export interface EvaluationResults {
+  items: EvaluationResultItem[];
+  chatId: number;
+  totalExams: number;
+  successCount: number;
+  averageScore: number;
+  averageGrade: string;
+  downloadAllUrl?: string;
+}
+
+export interface EvalProgress {
+  step: string;
+  label: string;
+  current: number;
+  total: number;
+}
+
 export interface ChatMessageData {
   id: number;
   sender: 'bot' | 'user';
   text: string;
   files: FileAttachment[];
   streaming?: boolean;
+  isNew?: boolean;
   isLoading?: boolean;
   isError?: boolean;
   downloadUrl?: string;
   downloadLabel?: string;
+  evaluationResults?: EvaluationResults;
 }
 
 export interface ChatSummary {
