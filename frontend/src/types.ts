@@ -31,6 +31,9 @@ export interface EvaluationResults {
   successCount: number;
   averageScore: number;
   averageGrade: string;
+  evalModel?: string;
+  ocrModel?: string;
+  rubricTaskCount?: number;
   downloadAllUrl?: string;
 }
 

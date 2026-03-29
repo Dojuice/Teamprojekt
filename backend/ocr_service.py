@@ -8,10 +8,10 @@ Flow:
 
 import fitz  # PyMuPDF
 import base64
-import io
 import os
+import asyncio
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 from openai import OpenAI
 
 _client: Optional[OpenAI] = None
@@ -144,16 +144,65 @@ async def extract_text_with_vision(images: List[bytes], context: str = "exam", m
             },
         })
 
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": content},
-        ],
-        max_tokens=4096,
-        temperature=0.1,
-    )
-    return response.choices[0].message.content or ""
+    last_error = "Leere oder unvollständige OCR-Antwort vom Modell"
+    for attempt in range(1, 4):
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": content},
+                ],
+                max_tokens=4096,
+                temperature=0.1,
+            )
+
+            choices: Any = getattr(response, "choices", None)
+            if not choices or len(choices) == 0:
+                last_error = "Antwort enthält kein 'choices'-Feld"
+                raise ValueError(last_error)
+
+            message = getattr(choices[0], "message", None)
+            if not message:
+                last_error = "Antwort enthält keine Nachricht"
+                raise ValueError(last_error)
+
+            content_text = getattr(message, "content", None)
+            if not content_text or not str(content_text).strip():
+                last_error = "Antwort enthält keinen OCR-Text"
+                raise ValueError(last_error)
+
+            return str(content_text)
+        except Exception as exc:
+            last_error = str(exc)
+            if attempt < 3:
+                await asyncio.sleep(0.6 * attempt)
+
+    raise RuntimeError(f"Vision-OCR fehlgeschlagen ({model}): {last_error}")
+
+
+def extract_text_native(pdf_path: str) -> dict:
+    """Try native PDF text extraction for typed PDFs before falling back to Vision OCR."""
+    filename = Path(pdf_path).name
+    chunks: List[str] = []
+
+    doc = fitz.open(pdf_path)
+    try:
+        for page in doc:
+            page_text = page.get_text("text") or ""
+            if page_text.strip():
+                chunks.append(page_text.strip())
+    finally:
+        doc.close()
+
+    text = "\n\n".join(chunks).strip()
+    quality = "high" if len(text) >= 600 else "low"
+    return {
+        "filename": filename,
+        "method": "native_pdf_text",
+        "text": text,
+        "quality": quality,
+    }
 
 
 async def extract_text_from_pdf(pdf_path: str, context: str = "exam", model: str = "openai/gpt-5.3-codex") -> dict:
@@ -181,6 +230,16 @@ async def extract_text_from_pdf(pdf_path: str, context: str = "exam", model: str
     result["page_count"] = len(doc)
     doc.close()
 
+    # Try native extraction first for non-handwritten contexts (typically printed model solutions).
+    if context == "solution":
+        native = extract_text_native(pdf_path)
+        if native["text"] and len(native["text"]) >= 600:
+            result["method"] = native["method"]
+            result["text"] = native["text"]
+            result["quality"] = native["quality"]
+            print(f"[OCR] '{filename}': Native PDF text extraction used ({len(result['text'])} chars)")
+            return result
+
     print(f"[OCR] '{filename}': Using AI Vision OCR ({result['page_count']} pages, model: {model})")
 
     # Convert PDF to images for Vision OCR
@@ -196,6 +255,8 @@ async def extract_text_from_pdf(pdf_path: str, context: str = "exam", model: str
         return result
 
     text = await extract_text_with_vision(images, context=context, model=model)
+    if not text.strip():
+        raise RuntimeError(f"Kein OCR-Text extrahiert für Datei '{filename}' (Modell: {model})")
     print(f"[OCR] '{filename}': Vision OCR completed ({len(text)} chars, {len(images)} pages)")
     print(f"[OCR] KI-extrahierter Text von '{filename}':")
     print(f"  {'─'*60}")

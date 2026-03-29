@@ -10,14 +10,16 @@ import os
 import uuid
 import json
 import shutil
+import hashlib
+import re
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 
 from database import engine, get_db, Base
 from models import Chat, Message
 from ocr_service import extract_text_from_pdf
-from evaluation_service import evaluate_exam, format_evaluation_as_text
+from evaluation_service import evaluate_exam, format_evaluation_as_text, build_solution_rubric
 from pdf_report import generate_evaluation_pdf, generate_batch_zip
 
 # Upload directory for temporary file storage
@@ -26,6 +28,8 @@ UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {".pdf"}
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50 MB per file
+SOLUTION_CACHE_DIR = UPLOAD_DIR / ".cache" / "solutions"
+SOLUTION_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -316,6 +320,8 @@ async def evaluate_chat_exams(
     chat_id: int,
     additional_instructions: str = Query(default=""),
     model: str = Query(default="openai/gpt-5.3-codex"),
+    ocr_model: Optional[str] = Query(default=None),
+    eval_model: Optional[str] = Query(default=None),
     db: Session = Depends(get_db),
 ):
     """Evaluate uploaded exams against uploaded solution(s) with streaming progress.
@@ -340,13 +346,16 @@ async def evaluate_chat_exams(
     exam_files = sorted([f for f in exam_dir.iterdir() if f.is_file() and f.suffix.lower() == ".pdf"])
     solution_files = sorted([f for f in solution_dir.iterdir() if f.is_file() and f.suffix.lower() == ".pdf"])
     total_exams = len(exam_files)
+    resolved_eval_model = eval_model or model
+    resolved_ocr_model = ocr_model or os.getenv("OCR_MODEL", "google/gemini-2.0-flash-exp:free")
 
     async def generate():
         # Step 1: Extract text from solution(s)
         print(f"\n{'='*70}")
         print(f"  BEWERTUNG GESTARTET – Chat {chat_id}")
         print(f"  {total_exams} Klausur(en), {len(solution_files)} Musterlösung(en)")
-        print(f"  Modell: {model}")
+        print(f"  Bewertungsmodell: {resolved_eval_model}")
+        print(f"  OCR-Modell: {resolved_ocr_model}")
         print(f"  Extraktions-Methode: AI Vision OCR")
         print(f"{'='*70}")
 
@@ -354,13 +363,42 @@ async def evaluate_chat_exams(
 
         print(f"\n[1/3] MUSTERLÖSUNG EINLESEN")
         solution_texts: List[str] = []
+        solution_rubrics: List[Dict[str, Any]] = []
         for sol_idx, sol_file in enumerate(solution_files, 1):
             sol_name = "_".join(sol_file.name.split("_")[1:])
             print(f"  → Musterlösung ({sol_idx}/{len(solution_files)}): {sol_name}")
             try:
-                result = await extract_text_from_pdf(str(sol_file), context="solution", model=model)
-                solution_texts.append(result["text"])
-                print(f"    ✓ Extrahiert ({result['method']}, {result['page_count']} Seiten, {len(result['text'])} Zeichen)")
+                file_hash = hashlib.sha256(sol_file.read_bytes()).hexdigest()
+                model_slug = re.sub(r"[^a-zA-Z0-9_.-]", "_", resolved_ocr_model)
+                cache_file = SOLUTION_CACHE_DIR / f"{file_hash}_{model_slug}.json"
+
+                if cache_file.exists():
+                    cached = json.loads(cache_file.read_text(encoding="utf-8"))
+                    solution_text = cached.get("text", "")
+                    rubric = cached.get("rubric", {})
+                    method = cached.get("method", "cache")
+                    print(f"    ✓ Cache-Treffer ({method}, {len(solution_text)} Zeichen)")
+                else:
+                    result = await extract_text_from_pdf(str(sol_file), context="solution", model=resolved_ocr_model)
+                    solution_text = result["text"]
+                    rubric = await build_solution_rubric(solution_text, model=resolved_eval_model)
+
+                    payload = {
+                        "filename": sol_name,
+                        "hash": file_hash,
+                        "ocr_model": resolved_ocr_model,
+                        "eval_model": resolved_eval_model,
+                        "method": result.get("method", "unknown"),
+                        "text": solution_text,
+                        "rubric": rubric,
+                    }
+                    cache_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+                    print(f"    ✓ Extrahiert ({result['method']}, {result['page_count']} Seiten, {len(solution_text)} Zeichen)")
+
+                if solution_text.strip():
+                    solution_texts.append(solution_text)
+                if isinstance(rubric, dict) and rubric.get("tasks"):
+                    solution_rubrics.append(rubric)
             except Exception as e:
                 print(f"    ✗ FEHLER: {str(e)}")
                 yield json.dumps({"type": "error", "message": f"Fehler beim Lesen der Musterlösung {sol_file.name}: {str(e)}"}) + "\n"
@@ -372,7 +410,19 @@ async def evaluate_chat_exams(
             return
 
         combined_solution = "\n\n---\n\n".join(solution_texts)
+
+        merged_rubric: Dict[str, Any] = {"tasks": [], "total_points": 0, "notes": "Zusammengeführt"}
+        seen_task_numbers = set()
+        for rubric in solution_rubrics:
+            for task in rubric.get("tasks", []):
+                task_num = str(task.get("task_number", "")).strip()
+                if task_num and task_num not in seen_task_numbers:
+                    merged_rubric["tasks"].append(task)
+                    seen_task_numbers.add(task_num)
+        merged_rubric["total_points"] = sum(int((t.get("points_max", 0) or 0)) for t in merged_rubric["tasks"])
+
         print(f"  ✓ Musterlösung bereit ({len(combined_solution)} Zeichen)")
+        print(f"  ✓ Bewertungsraster: {len(merged_rubric['tasks'])} Aufgaben")
 
         # Step 2: Extract text from each exam + Step 3: Evaluate each exam
         print(f"\n[2/3] TEXT EXTRAHIEREN & [3/3] KORREKTUR")
@@ -386,7 +436,7 @@ async def evaluate_chat_exams(
             yield json.dumps({"type": "progress", "step": "ocr", "label": f"Text wird extrahiert: {original_name}", "current": i + 1, "total": total_exams}) + "\n"
 
             try:
-                ocr_result = await extract_text_from_pdf(str(exam_file), context="exam", model=model)
+                ocr_result = await extract_text_from_pdf(str(exam_file), context="exam", model=resolved_ocr_model)
                 exam_text = ocr_result["text"]
 
                 print(f"  [OCR] ✓ Methode: {ocr_result['method']}, Seiten: {ocr_result['page_count']}, Zeichen: {len(exam_text)}")
@@ -399,14 +449,15 @@ async def evaluate_chat_exams(
                 print(f"  {'─'*60}")
 
                 # --- Evaluation Progress ---
-                print(f"  [EVAL] Korrektur via API ({model})...")
+                print(f"  [EVAL] Korrektur via API ({resolved_eval_model})...")
                 yield json.dumps({"type": "progress", "step": "eval", "label": f"Klausur wird korrigiert: {original_name}", "current": i + 1, "total": total_exams}) + "\n"
 
                 evaluation = await evaluate_exam(
                     exam_text=exam_text,
                     solution_text=combined_solution,
+                    solution_rubric=merged_rubric,
                     additional_instructions=additional_instructions,
-                    model=model,
+                    model=resolved_eval_model,
                 )
 
                 # --- Show evaluation result ---
@@ -471,6 +522,9 @@ async def evaluate_chat_exams(
             "chat_id": chat_id,
             "total_exams": total_exams,
             "successful": successful_count,
+            "eval_model": resolved_eval_model,
+            "ocr_model": resolved_ocr_model,
+            "rubric_task_count": len(merged_rubric.get("tasks", [])),
             "results": results,
         }) + "\n"
 

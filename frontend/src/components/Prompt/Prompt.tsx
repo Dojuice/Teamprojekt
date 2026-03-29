@@ -3,6 +3,7 @@ import { FileAttachment, UploadProgress, AIModel, AIModelOption } from '../../ty
 import './Prompt.css';
 
 const MODEL_OPTIONS: AIModelOption[] = [
+  { id: 'openai/gpt-4o-mini', label: 'GPT-4o Mini', description: 'OpenAI – schnell und kosteneffizient', free: false },
   { id: 'openai/gpt-5.3-codex', label: 'GPT-5.3 Codex', description: 'OpenAI – neuestes Modell', free: false },
   { id: 'openai/gpt-5.2-codex', label: 'GPT-5.2 Codex', description: 'OpenAI', free: false },
 ];
