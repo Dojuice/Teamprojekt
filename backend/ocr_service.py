@@ -10,11 +10,51 @@ import fitz  # PyMuPDF
 import base64
 import os
 import asyncio
+import re
 from pathlib import Path
 from typing import Any, List, Optional
 from openai import OpenAI
 
 _client: Optional[OpenAI] = None
+
+
+def _clean_provider_error_message(raw: str) -> str:
+    """Normalize provider errors to user-safe concise text."""
+    text = (raw or "").strip()
+    lowered = text.lower()
+
+    if "<!doctype html" in lowered or "<html" in lowered:
+        if "502" in lowered and "bad gateway" in lowered:
+            return "OpenRouter/Cloudflare meldet temporär 502 Bad Gateway."
+        return "Provider lieferte eine HTML-Fehlerseite statt API-JSON."
+
+    compact = re.sub(r"\s+", " ", text)
+    if len(compact) > 320:
+        return compact[:320] + "..."
+    return compact
+
+
+def _is_transient_provider_error(exc: Exception) -> bool:
+    """Return True for temporary provider/network conditions that should be retried."""
+    status_code = getattr(exc, "status_code", None)
+    if status_code in {408, 409, 425, 429, 500, 502, 503, 504}:
+        return True
+
+    msg = str(exc).lower()
+    transient_markers = (
+        "bad gateway",
+        "error code: 502",
+        "temporarily unavailable",
+        "timed out",
+        "timeout",
+        "rate limit",
+        "connection",
+        "service unavailable",
+        "upstream",
+        "<!doctype html",
+        "<html",
+    )
+    return any(marker in msg for marker in transient_markers)
 
 
 def get_client() -> OpenAI:
@@ -145,7 +185,8 @@ async def extract_text_with_vision(images: List[bytes], context: str = "exam", m
         })
 
     last_error = "Leere oder unvollständige OCR-Antwort vom Modell"
-    for attempt in range(1, 4):
+    max_attempts = 5
+    for attempt in range(1, max_attempts + 1):
         try:
             response = client.chat.completions.create(
                 model=model,
@@ -174,9 +215,13 @@ async def extract_text_with_vision(images: List[bytes], context: str = "exam", m
 
             return str(content_text)
         except Exception as exc:
-            last_error = str(exc)
-            if attempt < 3:
-                await asyncio.sleep(0.6 * attempt)
+            last_error = _clean_provider_error_message(str(exc))
+            if attempt < max_attempts:
+                # Retry transient provider/network failures with stronger backoff.
+                if _is_transient_provider_error(exc):
+                    await asyncio.sleep(min(1.5 * attempt, 8.0))
+                else:
+                    await asyncio.sleep(0.7 * attempt)
 
     raise RuntimeError(f"Vision-OCR fehlgeschlagen ({model}): {last_error}")
 
@@ -205,7 +250,7 @@ def extract_text_native(pdf_path: str) -> dict:
     }
 
 
-async def extract_text_from_pdf(pdf_path: str, context: str = "exam", model: str = "openai/gpt-5.3-codex") -> dict:
+async def extract_text_from_pdf(pdf_path: str, context: str = "exam", model: str = "openai/gpt-4o-mini") -> dict:
     """Extract text from a PDF file using AI Vision OCR.
 
     Args:
@@ -230,9 +275,12 @@ async def extract_text_from_pdf(pdf_path: str, context: str = "exam", model: str
     result["page_count"] = len(doc)
     doc.close()
 
+    native_solution_text = ""
+
     # Try native extraction first for non-handwritten contexts (typically printed model solutions).
     if context == "solution":
         native = extract_text_native(pdf_path)
+        native_solution_text = native.get("text", "")
         if native["text"] and len(native["text"]) >= 600:
             result["method"] = native["method"]
             result["text"] = native["text"]
@@ -254,7 +302,21 @@ async def extract_text_from_pdf(pdf_path: str, context: str = "exam", model: str
         result["method"] = "debug_skip_vision"
         return result
 
-    text = await extract_text_with_vision(images, context=context, model=model)
+    try:
+        text = await extract_text_with_vision(images, context=context, model=model)
+    except Exception:
+        # If vision provider is temporarily down, use available native solution text as degraded fallback.
+        if context == "solution" and native_solution_text and len(native_solution_text) >= 120:
+            result["method"] = "native_pdf_text_fallback_after_vision_error"
+            result["text"] = native_solution_text
+            result["quality"] = "degraded_native_fallback"
+            print(
+                f"[OCR] '{filename}': Vision failed, fallback to native text "
+                f"({len(native_solution_text)} chars)"
+            )
+            return result
+        raise
+
     if not text.strip():
         raise RuntimeError(f"Kein OCR-Text extrahiert für Datei '{filename}' (Modell: {model})")
     print(f"[OCR] '{filename}': Vision OCR completed ({len(text)} chars, {len(images)} pages)")

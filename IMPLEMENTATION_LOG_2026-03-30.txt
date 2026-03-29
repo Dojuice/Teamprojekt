@@ -136,3 +136,19 @@ Nachtrag: Frontend-Modellauswahl aktualisiert
 - Betroffene Dateien:
   - `frontend/src/components/Prompt/Prompt.tsx`
   - `frontend/src/App.tsx`
+
+Nachtrag: OpenRouter 502/HTML-Fehler bei Musterloesung robust behandelt
+- Fehlerbild reproduziert: Cloudflare/OpenRouter `502 Bad Gateway` lieferte HTML-Seite statt JSON.
+- OCR-Haertung erweitert:
+  - mehr Retries mit staerkerem Backoff fuer transiente Provider-Fehler (502/503/504/429 etc.)
+  - Erkennung von HTML-Fehlerseiten in Provider-Antworten
+  - kompakte, benutzerfreundliche Fehlermeldungen statt kompletter HTML-Ausgabe
+- Fallback fuer Musterloesungen:
+  - Wenn Vision-OCR scheitert, wird vorhandener nativer PDF-Text (ab Mindestlaenge) als degradierter Fallback genutzt.
+- Stabilerer OCR-Default gesetzt:
+  - Backend-Fallback-Default in `server.py` auf `openai/gpt-4o-mini`
+  - Frontend-Default `REACT_APP_OCR_MODEL`-Fallback in `App.tsx` auf `openai/gpt-4o-mini`
+- Betroffene Dateien:
+  - `backend/ocr_service.py`
+  - `backend/server.py`
+  - `frontend/src/App.tsx`

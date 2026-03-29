@@ -7,7 +7,7 @@ import { ChatMessageData, FileAttachment, ChatSummary, UploadProgress, AIModel, 
 import './App.css';
 
 const API_URL: string = process.env.REACT_APP_API_URL || 'http://localhost:8000';
-const OCR_MODEL: string = process.env.REACT_APP_OCR_MODEL || 'google/gemini-2.0-flash-exp:free';
+const OCR_MODEL: string = process.env.REACT_APP_OCR_MODEL || 'openai/gpt-4o-mini';
 
 const App: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessageData[]>([]);

@@ -94,6 +94,22 @@ class BatchUploadResponse(BaseModel):
     successful: int
 
 
+def _sanitize_error_message(error: Any, max_len: int = 320) -> str:
+    """Reduce provider/HTML errors to concise user-safe messages."""
+    raw = str(error or "").strip()
+    lowered = raw.lower()
+
+    if "<!doctype html" in lowered or "<html" in lowered:
+        if "502" in lowered and "bad gateway" in lowered:
+            return "Provider-Fehler (502 Bad Gateway) bei OpenRouter. Bitte in 1-2 Minuten erneut versuchen."
+        return "Provider lieferte eine HTML-Fehlerseite statt API-Antwort."
+
+    compact = re.sub(r"\s+", " ", raw)
+    if len(compact) > max_len:
+        return compact[:max_len] + "..."
+    return compact
+
+
 # --- Health / Welcome ---
 
 @app.get("/")
@@ -347,7 +363,7 @@ async def evaluate_chat_exams(
     solution_files = sorted([f for f in solution_dir.iterdir() if f.is_file() and f.suffix.lower() == ".pdf"])
     total_exams = len(exam_files)
     resolved_eval_model = eval_model or model
-    resolved_ocr_model = ocr_model or os.getenv("OCR_MODEL", "google/gemini-2.0-flash-exp:free")
+    resolved_ocr_model = ocr_model or os.getenv("OCR_MODEL", "openai/gpt-4o-mini")
 
     async def generate():
         # Step 1: Extract text from solution(s)
@@ -400,8 +416,9 @@ async def evaluate_chat_exams(
                 if isinstance(rubric, dict) and rubric.get("tasks"):
                     solution_rubrics.append(rubric)
             except Exception as e:
-                print(f"    ✗ FEHLER: {str(e)}")
-                yield json.dumps({"type": "error", "message": f"Fehler beim Lesen der Musterlösung {sol_file.name}: {str(e)}"}) + "\n"
+                display_error = _sanitize_error_message(e)
+                print(f"    ✗ FEHLER: {display_error}")
+                yield json.dumps({"type": "error", "message": f"Fehler beim Lesen der Musterlösung {sol_file.name}: {display_error}"}) + "\n"
                 return
 
         if not solution_texts:
@@ -484,12 +501,13 @@ async def evaluate_chat_exams(
                 })
 
             except Exception as e:
-                print(f"  ✗ FEHLER bei {original_name}: {str(e)}")
+                display_error = _sanitize_error_message(e)
+                print(f"  ✗ FEHLER bei {original_name}: {display_error}")
                 results.append({
                     "filename": original_name,
                     "status": "error",
-                    "error": str(e),
-                    "formatted_text": f"Fehler bei der Bewertung von {original_name}: {str(e)}",
+                    "error": display_error,
+                    "formatted_text": f"Fehler bei der Bewertung von {original_name}: {display_error}",
                 })
 
         # Step 4: Generate summary
