@@ -14,6 +14,7 @@ import re
 from pathlib import Path
 from typing import Any, List, Optional
 from openai import OpenAI
+from openai import APIError, APIConnectionError
 
 _client: Optional[OpenAI] = None
 
@@ -198,50 +199,90 @@ async def extract_text_with_vision(images: List[bytes], context: str = "exam", m
                 temperature=0.1,
             )
 
+            # Validate that response has expected structure
+            if response is None:
+                last_error = "API gab None-Objekt zurück statt gültige Response"
+                raise ValueError(last_error)
+
             choices: Any = getattr(response, "choices", None)
-            if not choices or len(choices) == 0:
-                last_error = "Antwort enthält kein 'choices'-Feld"
+            if choices is None:
+                last_error = "Response hat 'choices'-Feld aber es ist None"
+                raise ValueError(last_error)
+            if not isinstance(choices, (list, tuple)) or len(choices) == 0:
+                last_error = f"Response 'choices' ist leer oder kein Array: {type(choices)}"
                 raise ValueError(last_error)
 
             message = getattr(choices[0], "message", None)
             if not message:
-                last_error = "Antwort enthält keine Nachricht"
+                last_error = f"First choice hat keine 'message': {choices[0]}"
                 raise ValueError(last_error)
 
             content_text = getattr(message, "content", None)
-            if not content_text or not str(content_text).strip():
-                last_error = "Antwort enthält keinen OCR-Text"
+            if content_text is None:
+                last_error = "Message hat 'content' Feld aber es ist None"
+                raise ValueError(last_error)
+            if not str(content_text).strip():
+                last_error = "Message 'content' ist leerer String oder Whitespace"
                 raise ValueError(last_error)
 
             return str(content_text)
-        except Exception as exc:
-            last_error = _clean_provider_error_message(str(exc))
+        except (APIError, APIConnectionError) as api_exc:
+            # OpenAI/OpenRouter API errors - use _clean_provider_error_message
+            last_error = _clean_provider_error_message(str(api_exc))
             if attempt < max_attempts:
-                # Retry transient provider/network failures with stronger backoff.
-                if _is_transient_provider_error(exc):
+                # Retry transient errors with backoff
+                if _is_transient_provider_error(api_exc):
+                    print(f"[OCR] Attempt {attempt}/{max_attempts}: Transient API error, retrying... ({last_error})")
                     await asyncio.sleep(min(1.5 * attempt, 8.0))
                 else:
-                    await asyncio.sleep(0.7 * attempt)
+                    print(f"[OCR] Attempt {attempt}/{max_attempts}: Non-transient API error, giving up: {last_error}")
+                    break
+        except ValueError as val_exc:
+            # Response structure validation errors - these are usually not transient
+            last_error = str(val_exc)
+            print(f"[OCR] Attempt {attempt}/{max_attempts}: Invalid response structure: {last_error}")
+            # Don't retry - response structure issues won't be fixed by retrying
+            break
+        except Exception as exc:
+            # Generic exceptions
+            last_error = _clean_provider_error_message(str(exc))
+            if attempt < max_attempts:
+                if _is_transient_provider_error(exc):
+                    print(f"[OCR] Attempt {attempt}/{max_attempts}: Transient error, retrying... ({last_error})")
+                    await asyncio.sleep(min(1.5 * attempt, 8.0))
+                else:
+                    print(f"[OCR] Attempt {attempt}/{max_attempts}: Non-transient error: {last_error}")
 
     raise RuntimeError(f"Vision-OCR fehlgeschlagen ({model}): {last_error}")
 
 
 def extract_text_native(pdf_path: str) -> dict:
-    """Try native PDF text extraction for typed PDFs before falling back to Vision OCR."""
+    """Try native PDF text extraction for typed PDFs before falling back to Vision OCR.
+    
+    Args:
+        pdf_path: Path to the PDF file.
+    
+    Returns:
+        Dict with extracted text and metadata. text may be empty string if no text found.
+    """
     filename = Path(pdf_path).name
     chunks: List[str] = []
 
-    doc = fitz.open(pdf_path)
     try:
-        for page in doc:
-            page_text = page.get_text("text") or ""
-            if page_text.strip():
-                chunks.append(page_text.strip())
-    finally:
-        doc.close()
+        doc = fitz.open(pdf_path)
+        try:
+            for page in doc:
+                page_text = page.get_text("text") or ""
+                if page_text.strip():
+                    chunks.append(page_text.strip())
+        finally:
+            doc.close()
+    except Exception as e:
+        print(f"[OCR] Error during native PDF extraction for '{filename}': {e}")
+        pass  # Return empty result, don't fail
 
     text = "\n\n".join(chunks).strip()
-    quality = "high" if len(text) >= 600 else "low"
+    quality = "high" if len(text) >= 600 else ("medium" if len(text) >= 120 else "low")
     return {
         "filename": filename,
         "method": "native_pdf_text",
@@ -304,16 +345,38 @@ async def extract_text_from_pdf(pdf_path: str, context: str = "exam", model: str
 
     try:
         text = await extract_text_with_vision(images, context=context, model=model)
-    except Exception:
-        # If vision provider is temporarily down, use available native solution text as degraded fallback.
+    except RuntimeError as vision_error:
+        # If vision provider fails, try fallback strategies
+        error_msg = str(vision_error).lower()
+        
+        # For solutions, try fallback to native extraction if available
         if context == "solution" and native_solution_text and len(native_solution_text) >= 120:
+            print(f"[OCR] Vision failed, using native PDF text fallback ({len(native_solution_text)} chars)")
             result["method"] = "native_pdf_text_fallback_after_vision_error"
             result["text"] = native_solution_text
             result["quality"] = "degraded_native_fallback"
-            print(
-                f"[OCR] '{filename}': Vision failed, fallback to native text "
-                f"({len(native_solution_text)} chars)"
-            )
+            return result
+        
+        # For exams, also try native but it's less reliable
+        if context == "exam":
+            native = extract_text_native(pdf_path)
+            if native.get("text") and len(native.get("text", "")) >= 120:
+                print(f"[OCR] Vision failed for exam, trying native PDF text ({len(native['text'])} chars)")
+                result["method"] = "native_pdf_text_fallback_after_vision_error"
+                result["text"] = native["text"]
+                result["quality"] = "degraded_native_fallback"
+                return result
+        
+        # No fallback available - re-raise the vision error
+        print(f"[OCR] Vision OCR failed and no fallback available: {vision_error}")
+        raise
+    except Exception as exc:
+        # Unexpected errors - try fallback for solutions
+        if context == "solution" and native_solution_text and len(native_solution_text) >= 120:
+            print(f"[OCR] Unexpected error, using native PDF text fallback: {exc}")
+            result["method"] = "native_pdf_text_fallback_after_unexpected_error"
+            result["text"] = native_solution_text
+            result["quality"] = "degraded_native_fallback"
             return result
         raise
 
