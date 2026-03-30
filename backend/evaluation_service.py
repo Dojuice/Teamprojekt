@@ -14,10 +14,107 @@ Compares student answers against a model solution and provides:
 import os
 import json
 import re
+import asyncio
 from typing import Any, Dict, List, Optional
 from openai import OpenAI
 
 _client: Optional[OpenAI] = None
+
+
+def _clean_provider_error_message(raw: str) -> str:
+    text = (raw or "").strip()
+    lowered = text.lower()
+
+    if "<!doctype html" in lowered or "<html" in lowered:
+        if "502" in lowered and "bad gateway" in lowered:
+            return "OpenRouter/Cloudflare meldet temporaer 502 Bad Gateway."
+        return "Provider lieferte eine HTML-Fehlerseite statt API-JSON."
+
+    compact = re.sub(r"\s+", " ", text)
+    if len(compact) > 320:
+        return compact[:320] + "..."
+    return compact
+
+
+def _is_transient_provider_error(exc: Exception) -> bool:
+    status_code = getattr(exc, "status_code", None)
+    if status_code in {408, 409, 425, 429, 500, 502, 503, 504}:
+        return True
+
+    msg = str(exc).lower()
+    markers = (
+        "bad gateway",
+        "error code: 502",
+        "temporarily unavailable",
+        "timed out",
+        "timeout",
+        "rate limit",
+        "connection",
+        "service unavailable",
+        "upstream",
+        "<!doctype html",
+        "<html",
+    )
+    return any(m in msg for m in markers)
+
+
+def _extract_completion_content(response: Any) -> str:
+    """Safely extract text content from OpenAI-compatible completion response."""
+    choices = getattr(response, "choices", None)
+    if not isinstance(choices, list) or len(choices) == 0 or choices[0] is None:
+        raise ValueError("Antwort enthaelt kein gueltiges choices[0]")
+
+    message = getattr(choices[0], "message", None)
+    if message is None:
+        raise ValueError("Antwort enthaelt keine message")
+
+    content = getattr(message, "content", None)
+    if content is None:
+        return ""
+
+    if isinstance(content, list):
+        parts: List[str] = []
+        for part in content:
+            if isinstance(part, dict):
+                text_part = part.get("text")
+                if text_part:
+                    parts.append(str(text_part))
+            else:
+                text_part = getattr(part, "text", None)
+                if text_part:
+                    parts.append(str(text_part))
+        return "\n".join(parts).strip()
+
+    return str(content).strip()
+
+
+async def _chat_completion_with_retries(
+    client: OpenAI,
+    *,
+    model: str,
+    messages: List[Dict[str, str]],
+    max_tokens: int,
+    temperature: float,
+    max_attempts: int = 5,
+) -> Any:
+    """Call provider with retries for temporary failures."""
+    last_error = "Unbekannter Providerfehler"
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return client.chat.completions.create(
+                model=model,
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+        except Exception as exc:
+            last_error = _clean_provider_error_message(str(exc))
+            if attempt < max_attempts and _is_transient_provider_error(exc):
+                await asyncio.sleep(min(1.5 * attempt, 8.0))
+                continue
+            raise RuntimeError(f"Provider-Aufruf fehlgeschlagen ({model}): {last_error}")
+
+    raise RuntimeError(f"Provider-Aufruf fehlgeschlagen ({model}): {last_error}")
 
 
 def get_client() -> OpenAI:
@@ -416,7 +513,8 @@ async def build_solution_rubric(solution_text: str, model: str = "openai/gpt-5.3
     fallback = _fallback_rubric()
     try:
         client = get_client()
-        response = client.chat.completions.create(
+        response = await _chat_completion_with_retries(
+            client,
             model=model,
             messages=[
                 {"role": "system", "content": RUBRIC_SYSTEM_PROMPT},
@@ -425,10 +523,12 @@ async def build_solution_rubric(solution_text: str, model: str = "openai/gpt-5.3
             max_tokens=2000,
             temperature=0.1,
         )
-        raw = getattr(response.choices[0].message, "content", "") if getattr(response, "choices", None) else ""
+        raw = _extract_completion_content(response)
         if not raw:
             return fallback
         parsed = _safe_json_loads(raw)
+        if not isinstance(parsed, dict):
+            return fallback
         if not isinstance(parsed.get("tasks"), list) or len(parsed.get("tasks", [])) == 0:
             return fallback
 
@@ -479,7 +579,8 @@ async def evaluate_exam(
         user_message += f"\n\n## ZUSÄTZLICHE ANWEISUNGEN:\n{additional_instructions}"
 
     client = get_client()
-    response = client.chat.completions.create(
+    response = await _chat_completion_with_retries(
+        client,
         model=model,
         messages=[
             {"role": "system", "content": EVALUATION_SYSTEM_PROMPT},
@@ -488,7 +589,7 @@ async def evaluate_exam(
         max_tokens=4096,
         temperature=0.2,
     )
-    raw_response = response.choices[0].message.content or "{}"
+    raw_response = _extract_completion_content(response) or "{}"
 
     try:
         result = _safe_json_loads(raw_response)
@@ -496,7 +597,8 @@ async def evaluate_exam(
             raise ValueError("Antwort verletzt das erwartete JSON-Schema")
     except Exception:
         try:
-            repair = client.chat.completions.create(
+            repair = await _chat_completion_with_retries(
+                client,
                 model=model,
                 messages=[
                     {
@@ -515,7 +617,7 @@ async def evaluate_exam(
                 max_tokens=4096,
                 temperature=0,
             )
-            repaired_raw = repair.choices[0].message.content or "{}"
+            repaired_raw = _extract_completion_content(repair) or "{}"
             result = _safe_json_loads(repaired_raw)
             if not isinstance(result, dict) or not _has_minimum_evaluation_schema(result):
                 raise ValueError("Reparierte Antwort ist kein valides Bewertungsschema")

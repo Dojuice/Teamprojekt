@@ -152,3 +152,11 @@ Nachtrag: OpenRouter 502/HTML-Fehler bei Musterloesung robust behandelt
   - `backend/ocr_service.py`
   - `backend/server.py`
   - `frontend/src/App.tsx`
+
+Nachtrag: NoneType-Fehler in Musterloesungs-/Rubrikpfad abgefangen
+- Fehlerbild: `'NoneType' object is not subscriptable` bei instabilen Provider-Antworten.
+- Fix in `evaluation_service.py`:
+  - sichere Extraktion von Completion-Content (auch bei ungewoehnlicher `choices/message/content`-Struktur)
+  - Retry-Wrapper fuer Provider-Calls (Rubrik, Bewertung, Reparatur)
+  - defensive Guards, falls Provider statt JSON ungueltige/partielle Payload liefert
+- Ziel: kein Absturz mehr durch `NoneType` beim Einlesen der Musterloesung/Rubrik.
