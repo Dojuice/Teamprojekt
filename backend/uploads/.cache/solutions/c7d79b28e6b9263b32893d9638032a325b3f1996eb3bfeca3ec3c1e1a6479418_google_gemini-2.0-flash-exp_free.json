@@ -1,0 +1,99 @@
+{
+  "filename": "38_Musterlösung IRW WiSe2026.pdf",
+  "hash": "c7d79b28e6b9263b32893d9638032a325b3f1996eb3bfeca3ec3c1e1a6479418",
+  "ocr_model": "google/gemini-2.0-flash-exp:free",
+  "eval_model": "openai/gpt-5.3-codex",
+  "method": "native_pdf_text",
+  "text": "Aufwand\nZeitlich Abgrenzung Zeitlich abgegrenzt Sachliche Abgrenzung\nKosten\n1\n12.000,00 \n    \n12.000,00 \n          \n12.000,00 \n-                  \n-\n                \n2\n2\n5.850,00 \n      \n5.850,00 \n            \n1.350,00 \n-                    \n4.500,00 \n      \n2\n3\n252.000,00 \n \n5.000,00 \n              \n257.000,00 \n        \n257.000,00 \n \n2\n4\n7.200,00 \n      \n7.200,00 \n            \n1.800,00 \n                   \n9.000,00 \n      \n2\n5\n-\n                      \n12.000,00 \n                 \n12.000,00 \n    \n2\n\nKostenarten\nfix\nvariabel\ngesamt\nLöhne\n-\n \n                          \nGehälter\n14.000,00 \n            \n102.600,00 \n     \n116.600,00 \n            \nLohnnebenkosten\n3.500,00 \n              \n25.650,00 \n       \n29.150,00 \n              \nBetriebskosten\n2.500,00 \n              \n8.208,00 \n         \n10.708,00 \n              \nSonstige Kosten\n43.984,00 \n            \n3.420,00 \n         \n47.404,00 \n              \nAbschreibungen\n54.690,00 \n            \n54.690,00 \n              \nSumme Kosten\n118.674,00 \n          \n139.878,00 \n     \n258.552,00 \n            \nVerrechnete Leistung\n258.552,00 \n            \nKostenstellenergebnis (Leistung ./. Kosten)\n-\n \n                          \nPunkte\nAnzahl Mitarbeiter\n2\nAuftrag 1\n6\nAuftrag 2\n6\nGeplante Betriebsstunden\n1.368\nAuftrag 3\n3\nPlanverrechnungssatz\n102,25000 \n      \n189,00000 \n             \nKostenarten\nfix\nvariabel\ngesamt\nGehälter\n14.000,00 \n            \n102.600,00 \n     \n116.600,00 \n            \nLohnnebenkosten\n3.500,00 \n              \n25.650,00 \n       \n29.150,00 \n              \nBetriebskosten\n2.500,00 \n              \n8.208,00 \n         \n10.708,00 \n              \nSonstige Kosten\n43.984,00 \n            \n3.420,00 \n         \n47.404,00 \n              \nAbschreibungen\n54.690,00 \n            \n-\n \n                   \n54.690,00 \n              \nSumme Kosten\n118.674,00 \n          \n139.878,00 \n     \n258.552,00 \n            \nGeplante Betriebsstunden\n1.368\nAuftrag  1\nMake\n118.674 \n            \n139.878 \n            \n258.552 \n            \nBuy\n0\n280440\n280440\n21.888 \n-               \nAuftrag 2\nFixe Kosten Beschaffung\n0\nEinkaufspreis\n205 netto\n243,95 brutto\nKv\n102,25\nKritische Menge\n1154,978102\nAuftrag 3\nGenerelle Auslastung des Unternehmens\nKnow-how Verlust\nImagewirkung\nPlankosten\nPlankosten\n\nAuftrag 1\nVollkosten\nMEK\n45.000,00 \n                    \nMGK\n3.600,00 \n                      \n8,00%\nMaterialkosten\n48.600,00 \n                    \nFEK\n50\nFGK\n2.900,00 \n                      \n58,00 \n                          \nFertigungskosten\n2.900,00 \n                      \nSEKF\nHerstellkosten\n51.500,00 \n                    \nAuftrag\nPunkte\nVertrieb & verwaltung\n18.025,00 \n                    \n35,00%\nAuftrag 1\n8\nSEK V\n450,00 \n                          \nAuftrag 2\n4\nSelbstkosten\n69.975,00 \n                    \nAuftrag 3\n5\nAuftrag 4\n3\nAuftrag 2\nSumme\n20\nUmsatzrendite\n7.775,00 \n                      \n10% Durch 0,9 teilen = im Hundert rechnen\nVerkaufspreis\n77.750,00 \n                    \nWareneinkauf\nHardwareprojekte\nEinzelmaterial\n2.400.000 \n                  \nProduktivzeiten\n5.520 \n                          \nPersonalkosten\n84.250 \n                       \n230.000 \n                     \nSonstige Kosten\n51.575 \n                       \n48.300 \n                       \nAbschreibungen\n39.800 \n                       \n34.360 \n                       \nKalk. Zinsen\n16.375 \n                       \n7.500 \n                          \nSumme\n192.000 \n                     \n320.160 \n                     \n8%\n320160\n192.000 \n                     \n-\n \n                              \n-\n \n                              \nEinzelmaterial\n2.400.000 \n                    \nEinzellöhne\n5.520 \n                            \nBezugsgröße\n2.400.000 \n                  \n5.520 \n                          \nZuschlagsatz\n8,00000%\n58,00 \n                          \n35,000000000%\nAuftrag 3\nVariable Kosten = kurzfristige Preisuntergrenze\nFixe, cash unwirksame Kosten = mittelfristige Preisuntergrenze\nAuftrag 4\nOperativer Bereich ok\n35% V&V ist recht ungenau\nV&V aufteilen, um stufenweise Fixkosten zu rechnen\nProzesskostenrechnung einführen\nVerrechnungs-\ngrößen\nGemeinkosten\nKostenstellen\n\nKostenarten\nfix\nvariabel\ngesamt\nLöhne\n-\n \n                                     \n-\n \n                         \n0,00%\nGehälter\n286.000,00 \n             \n286.000,00 \n                       \n307.500,00 \n                   \n21.500,00 \n-            \n-7,52%\nLohnnebenkosten\n74.360,00 \n               \n-\n \n                                   \n74.360,00 \n                         \n73.800,00 \n                     \n560,00 \n                  \n0,75%\nMiete\n36.500,00 \n               \n36.500,00 \n                         \n32.460,00 \n                     \n4.040,00 \n               \n11,07%\nSonstige betriebliche Kosten\n186.500,00 \n             \n41.580,00 \n                      \n228.080,00 \n                       \n244.625,00 \n                   \n16.545,00 \n-            \n-7,25%\nKapitaldienst\n47.895,00 \n               \n47.895,00 \n                         \n49.568,00 \n                     \n1.673,00 \n-               \n-3,49%\nAbschreibungen\n138.965,00 \n             \n138.965,00 \n                       \n145.200,00 \n                   \n6.235,00 \n-               \n-4,49%\n19999,84308\nSumme Kosten\n770.220,00 \n             \n41.580,00 \n                      \n811.800,00 \n                       \n853.153,00 \n                   \n41.353,00 \n-            \n-5,09%\n0\n10.745\n900\nVerrechnete Leistung\n811.800,00 \n                       \n881.090,00 \n                  \nKfix\n770.220 \n                                              \n770.220 \n                   \n770.220 \n         \nKostenstellenergebnis (Leistung ./. Kosten)\n-\n \n                                     \n27.937,00 \n                     \nKges\n770.220 \n                                              \n815.349 \n                   \n774.000 \n         \nÜberdeckung\nKist\n853.153,00 \n             \nK Verr\n-\n \n                                           \n881.090,00 \n             \n73.800,00 \n      \nAnzahl produktive Mitarbeiter\n6\nMitarbeiter (Ist)\n7\nKvar\n-\n \n                                                      \n45.129 \n                     \n3.780 \n              \nGeplante Leistung (# Stunden)\n9.900\nLeistung (Ist)\n10.745\nPlanverrechnungssatz\n4,200000 \n                        \n82,00000 \n                          \nIst-Kostensatz\n79,4000 \n                   \nVerrechnete Kosten\n881.090,00 \n                    \nSollkosten\n815.349,00 \n                    \nWert\n74.360,00 \n                                          \n73.800,00 \n               \nBeschäftigungsabweichung\n65.741,00 \n-                      \nPreisabweichung\n-\n \n                         \nMenge\n286000,000\n307500\nIstkosten\n853.153,00 \n                    \nPreis\n0,260 \n                                                  \n0,240000 \n                \nVerbrauchsabweichung (Menge & Preis)\n37.804,00 \n                      \nMehraufwand\nKip\n79.950,00 \n               \nKii\n73.800,00 \n               \n41580\n811800\n853153\nPreisabweichung\nAuftrag 3\n6.150,00 \n-                 \n-\n \n                                   \n-\n \n                                     \n-\n \n                           \nPlan\nIst\nSoVers. Beiträge\n26%\n24%\nWert\n-\n \n                                                      \n-\n \n                           \nWert\n74.360,00 \n                                                                  \n73.800,00 \n         \nMenge\n6\n7\nMenge\n286000\n307500\n693.000,00 \n                    \n990.000,00 \n                       \nPreis\n-\n \n                                                      \n-\n \n                           \nPreis\n0,260 \n                                                                          \n0,240 \n                 \nKip\n-\n \n                           \nKip\n79.950,00 \n         \n1720\n128700\nKii\n-\n \n                           \nKii\n73.800,00 \n         \n0\nPreisabweichung\n-\n \n                           \nPreisabweichung\n6.150,0000 \n-       \nLeerkapazität\n#DIV/0!\nEinsparung\nKostenarten\nfix\nvariabel\ngesamt\nGehälter\n286.000,00 \n         \n-\n \n                              \n286.000,00 \n                  \n307.500,00 \n              \n21.500,00 \n-         \n-7,52%\nLohnnebenkosten\n74.360,00 \n           \n-\n \n                              \n74.360,00 \n                    \n73.800,00 \n                \n560,00 \n              \n0,75%\nMiete\n36.500,00 \n           \n-\n \n                              \n36.500,00 \n                    \n32.460,00 \n                \n4.040,00 \n           \n11,07%\nSonstige betriebliche Kosten\n186.500,00 \n         \n41.580,00 \n                  \n228.080,00 \n                  \n244.625,00 \n              \n16.545,00 \n-         \n-7,25%\nKapitaldienst\n47.895,00 \n           \n-\n \n                              \n47.895,00 \n                    \n49.568,00 \n                \n1.673,00 \n-           \n-3,49%\nAbschreibungen\n138.965,00 \n         \n-\n \n                              \n138.965,00 \n                  \n145.200,00 \n              \n6.235,00 \n-           \n-4,49%\nSumme Kosten\n770.220,00 \n         \n41.580,00 \n                  \n811.800,00 \n                  \n853.153,00 \n              \n41.353,00 \n-         \n-5,09%\nVerrechnete Leistung\n-\n \n                       \n-\n \n                              \n-\n \n                     \nAnzahl produktive Mitarbeiter\n6\nMitarbeiter (Ist)\n7\nGeplante Leistung (# Stunden)\n9.900\nLeistung (Ist)\n10.745\nPlanverrechnungssatz\nIst-Kostensatz\nAuftrag 1\n3\nAuftrag 2 rechnerisch\n6\nAuftrag 2 Grafik\n5\nAuftrag 3\n3\nAuftrag 4\n3\nK variabel\n-\n \n                           \nKostenarten\nfix\nvariabel\ngesamt\nVerr Satz\n88,44 \n                       \nLöhne\n-\n \n                       \n-\n \n                              \n-\n \n                                \n-\n \n                            \n-\n \n                     \n0,00%\nVerrechnete Leistung\n950.313,85 \n             \nGehälter\n429.000,00 \n         \n-\n \n                              \n429.000,00 \n                  \n461.250,00 \n              \n32.250,00 \n-         \n-7,52%\nGesamtabweichung\n37.521,85 \n-               \nLohnnebenkosten\n111.540,00 \n         \n-\n \n                              \n111.540,00 \n                  \n110.700,00 \n              \n840,00 \n              \n0,75%\nMiete\n54.750,00 \n           \n-\n \n                              \n54.750,00 \n                    \n48.690,00 \n                \n6.060,00 \n           \n11,07%\nSollKosten\n875.580,00 \n             \nKapitaldienst\n71.842,50 \n           \n-\n \n                              \n71.842,50 \n                    \n74.352,00 \n                \n2.509,50 \n-           \n-3,49%\nBeschäsftigungsabweichung\n74.733,85 \n-               \nAbschreibungen\n208.447,50 \n         \n-\n \n                              \n208.447,50 \n                  \n217.800,00 \n              \n9.352,50 \n-           \n-4,49%\nIstkosten\n912.792,00 \n             \nSumme Kosten\n875.580,00 \n         \n-\n \n                              \n875.580,00 \n                  \n912.792,00 \n              \n37.212,00 \n-         \n-5,09%\nVerbrauchsabweichung\n37.212,00 \n               \nVerrechnete Leistung\n-\n \n                       \n-\n \n                              \n-\n \n                     \nKostenstellenergebnis (Leistung \n./. Kosten)\n-\n \n                      \n-\n \n                             \n-\n \n                    \nAnzahl produktive Mitarbeiter\n6\nMitarbeiter (Ist)\n7\nGeplante Leistung (# Stunden)\n9.900\nLeistung (Ist)\n10.745\nPlanverrechnungssatz\n-\n \n                     \nPlankosten\nIstkosten\nAbweichung\nAbw. %\nIstkosten\nAbweichung\nAbw. %\nAbw. %\nPlankosten\nIstkosten\nAbweichung\nPlankosten\n 600.000\n 650.000\n 700.000\n 750.000\n 800.000\n 850.000\n 900.000\n0\n2000\n4000\n6000\n8000\n10000\n12000\nAuftrag 2 Grafische Lösung\nKfix\nKges\nKist\nK Verr\n\nAddition\nMax\n1 Entscheidungen\n3\n6\nKostentreiber, Bezugsgrößen, Db-Rechnung\n3\n2\nVollständigkeit, Überschneidungsfreiheit, Eindeutigkeit, \nwirtschaftlichkeit\n5\n5\n3 Mehr Überdeckung, mehr belastung der KoTrä\n2\n5\nsofern preise nicht verändert, bleibt ergebnis gleich\n3\n4 Buchungen in einem einheitlichen journal\n2\n5\ngetrennte journale\n2\nZugriff finanzverwaltung\n2\n5 GKV = alles, was nicht Mat, Personal, AfA ist\n2\n4\nUKV = alles, was nicht HK, Vertrieb oder Verwaltung ist\n2\n26\n25",
+  "rubric": {
+    "tasks": [
+      {
+        "task_number": "1",
+        "task_title": "Kostenartenrechnung",
+        "points_max": 10,
+        "task_type": "table_calc",
+        "expected_elements": [
+          "zeitliche Abgrenzung",
+          "sachliche Abgrenzung",
+          "Kosten je Position"
+        ],
+        "critical_values": [
+          "Tabellenwerte pro Zeile"
+        ],
+        "grading_rules": [
+          "Teilpunkte pro korrekt gefuellter Zelle"
+        ]
+      },
+      {
+        "task_number": "2",
+        "task_title": "Make-or-Buy Analyse",
+        "points_max": 15,
+        "task_type": "numeric_calc",
+        "expected_elements": [
+          "Kostenvergleich",
+          "kritische Menge",
+          "qualitative Faktoren"
+        ],
+        "critical_values": [
+          "fixe/variable Kosten",
+          "kritische Menge"
+        ],
+        "grading_rules": [
+          "Rechenweg und Ergebnis separat bewerten"
+        ]
+      },
+      {
+        "task_number": "3",
+        "task_title": "Kalkulation",
+        "points_max": 20,
+        "task_type": "numeric_calc",
+        "expected_elements": [
+          "Selbstkosten",
+          "Verkaufspreis",
+          "Preisuntergrenzen"
+        ],
+        "critical_values": [
+          "Renditebezug",
+          "Kostenstufen"
+        ],
+        "grading_rules": [
+          "Teilpunkte bei korrekter Methode trotz Rechenfehler"
+        ]
+      },
+      {
+        "task_number": "4",
+        "task_title": "Abweichungsanalyse",
+        "points_max": 20,
+        "task_type": "graph_interpretation",
+        "expected_elements": [
+          "Soll/Ist/Verrechnete Kosten",
+          "Preisabweichung",
+          "Bewertung Methode"
+        ],
+        "critical_values": [
+          "Abweichungswerte",
+          "Kostensaetze"
+        ],
+        "grading_rules": [
+          "Grafische Loesung als Teilleistung anerkennen"
+        ]
+      },
+      {
+        "task_number": "5",
+        "task_title": "Kostenrechnung Grundlagen",
+        "points_max": 25,
+        "task_type": "conceptual_text",
+        "expected_elements": [
+          "Fachbegriffe korrekt",
+          "inhaltlich richtige Abgrenzungen"
+        ],
+        "critical_values": [],
+        "grading_rules": [
+          "Semantisch bewerten, kein Wortlaut-Zwang"
+        ]
+      }
+    ],
+    "total_points": 90,
+    "notes": "Fallback-Raster"
+  }
+}

@@ -1,0 +1,126 @@
+[
+  {
+    "filename": "mathe_exam_Handwritten1.pdf",
+    "ocr_method": "vision_ocr",
+    "page_count": 3,
+    "evaluation": {
+      "student_name": "Barjasic Marko",
+      "overall_score": 0,
+      "overall_grade": "5.0",
+      "total_points": 0.0,
+      "max_points": 90,
+      "tasks": [
+        {
+          "task_number": "1",
+          "task_title": "Kostenartenrechnung",
+          "points_achieved": 0.0,
+          "points_max": 10,
+          "score_percent": 0,
+          "status": "nicht_beantwortet",
+          "evidence": [
+            "„Aufgabe 1 (Grenzwerte) … lim_{x→2} (x^2-4)/(x-2)”",
+            "Keine Tabelle zu zeitlicher/sachlicher Abgrenzung oder Kosten je Position vorhanden"
+          ],
+          "grading_reason": "Die abgegebene Lösung behandelt Analysis (Grenzwertrechnung) und enthält keine inhaltlich passende Bearbeitung der Kostenartenrechnung.",
+          "feedback": "Für diese Aufgabe wurden keine relevanten Inhalte zur Kostenartenrechnung eingereicht. Es fehlen die geforderten Abgrenzungen und Kostenwerte je Position.",
+          "missing_elements": [
+            "zeitliche Abgrenzung",
+            "sachliche Abgrenzung",
+            "Kosten je Position"
+          ],
+          "correct_elements": []
+        },
+        {
+          "task_number": "2",
+          "task_title": "Make-or-Buy Analyse",
+          "points_achieved": 0.0,
+          "points_max": 15,
+          "score_percent": 0,
+          "status": "nicht_beantwortet",
+          "evidence": [
+            "„Aufgabe 2 (Ableitungen) … f'(x) = 3x^2 - 6x”",
+            "Keine Make-or-Buy-Rechnung, keine kritische Menge, keine qualitativen Faktoren zur Beschaffung"
+          ],
+          "grading_reason": "Statt einer Make-or-Buy-Analyse wurde eine mathematische Ableitungsaufgabe bearbeitet.",
+          "feedback": "Es liegt keine inhaltlich passende Lösung zur Make-or-Buy-Entscheidung vor. Weder Kostenvergleich noch kritische Menge oder qualitative Bewertung sind enthalten.",
+          "missing_elements": [
+            "Kostenvergleich",
+            "kritische Menge",
+            "qualitative Faktoren"
+          ],
+          "correct_elements": []
+        },
+        {
+          "task_number": "3",
+          "task_title": "Kalkulation",
+          "points_achieved": 0.0,
+          "points_max": 20,
+          "score_percent": 0,
+          "status": "nicht_beantwortet",
+          "evidence": [
+            "„Aufgabe 3 (Integralrechnung) … ∫_0^2 (3x^2 - 4x + 1) dx”",
+            "Keine Selbstkosten-/Verkaufspreisrechnung, keine Preisuntergrenzen"
+          ],
+          "grading_reason": "Die Antwort behandelt Integralrechnung und nicht die geforderte betriebswirtschaftliche Kalkulation.",
+          "feedback": "Für die Kalkulationsaufgabe fehlen alle geforderten Rechenschritte und Ergebnisse (Selbstkosten, Verkaufspreis, Preisuntergrenzen).",
+          "missing_elements": [
+            "Selbstkosten",
+            "Verkaufspreis",
+            "Preisuntergrenzen"
+          ],
+          "correct_elements": []
+        },
+        {
+          "task_number": "4",
+          "task_title": "Abweichungsanalyse",
+          "points_achieved": 0.0,
+          "points_max": 20,
+          "score_percent": 0,
+          "status": "nicht_beantwortet",
+          "evidence": [
+            "In der Antwort gibt es keine Soll/Ist/Verrechnete-Kosten-Darstellung",
+            "Keine Preisabweichungsrechnung und keine methodische Bewertung"
+          ],
+          "grading_reason": "Es wurde keine Lösung zur Abweichungsanalyse abgegeben.",
+          "feedback": "Die für diese Aufgabe erforderlichen Kennzahlen und Interpretationen sind nicht vorhanden.",
+          "missing_elements": [
+            "Soll/Ist/Verrechnete Kosten",
+            "Preisabweichung",
+            "Bewertung Methode"
+          ],
+          "correct_elements": []
+        },
+        {
+          "task_number": "5",
+          "task_title": "Kostenrechnung Grundlagen",
+          "points_achieved": 0.0,
+          "points_max": 25,
+          "score_percent": 0,
+          "status": "nicht_beantwortet",
+          "evidence": [
+            "Keine begriffliche Auseinandersetzung mit Kostenrechnung in der Antwort",
+            "Stattdessen ausschließlich Analysis-Inhalte"
+          ],
+          "grading_reason": "Die konzeptionelle Frage zu Kostenrechnung wurde nicht beantwortet.",
+          "feedback": "Es fehlen die geforderten Fachbegriffe und inhaltlichen Abgrenzungen der Kostenrechnung.",
+          "missing_elements": [
+            "Fachbegriffe korrekt",
+            "inhaltlich richtige Abgrenzungen"
+          ],
+          "correct_elements": []
+        }
+      ],
+      "general_feedback": "Die eingereichte Bearbeitung gehört fachlich zu einer Analysis-Klausur und nicht zur vorliegenden Klausur in Kostenrechnung. Daher konnten keine inhaltlich anrechenbaren Punkte vergeben werden.",
+      "strengths": [
+        "Strukturierte mathematische Darstellung in der eingereichten (fachfremden) Lösung",
+        "Rechenschritte sind in sich nachvollziehbar für Analysis"
+      ],
+      "weaknesses": [
+        "Fachliche Themenverfehlung (Kostenrechnung nicht bearbeitet)",
+        "Keine Bearbeitung der im Bewertungsraster geforderten Aufgabeninhalte"
+      ]
+    },
+    "formatted_text": "📋 **Bewertungsergebnis**\nStudent: Barjasic Marko\nGesamtnote: **5.0** (0%)\nPunkte: 0.0 / 90\n\n📝 **Aufgaben im Detail:**\n\n⬜ **Aufgabe 1** – Kostenartenrechnung\n   0.0/10 Punkte\n   Für diese Aufgabe wurden keine relevanten Inhalte zur Kostenartenrechnung eingereicht. Es fehlen die geforderten Abgrenzungen und Kostenwerte je Position.\n   Fehlend: zeitliche Abgrenzung, sachliche Abgrenzung, Kosten je Position\n\n⬜ **Aufgabe 2** – Make-or-Buy Analyse\n   0.0/15 Punkte\n   Es liegt keine inhaltlich passende Lösung zur Make-or-Buy-Entscheidung vor. Weder Kostenvergleich noch kritische Menge oder qualitative Bewertung sind enthalten.\n   Fehlend: Kostenvergleich, kritische Menge, qualitative Faktoren\n\n⬜ **Aufgabe 3** – Kalkulation\n   0.0/20 Punkte\n   Für die Kalkulationsaufgabe fehlen alle geforderten Rechenschritte und Ergebnisse (Selbstkosten, Verkaufspreis, Preisuntergrenzen).\n   Fehlend: Selbstkosten, Verkaufspreis, Preisuntergrenzen\n\n⬜ **Aufgabe 4** – Abweichungsanalyse\n   0.0/20 Punkte\n   Die für diese Aufgabe erforderlichen Kennzahlen und Interpretationen sind nicht vorhanden.\n   Fehlend: Soll/Ist/Verrechnete Kosten, Preisabweichung, Bewertung Methode\n\n⬜ **Aufgabe 5** – Kostenrechnung Grundlagen\n   0.0/25 Punkte\n   Es fehlen die geforderten Fachbegriffe und inhaltlichen Abgrenzungen der Kostenrechnung.\n   Fehlend: Fachbegriffe korrekt, inhaltlich richtige Abgrenzungen\n\n💬 **Allgemeines Feedback:**\nDie eingereichte Bearbeitung gehört fachlich zu einer Analysis-Klausur und nicht zur vorliegenden Klausur in Kostenrechnung. Daher konnten keine inhaltlich anrechenbaren Punkte vergeben werden.\n\n💪 **Stärken:**\n  • Strukturierte mathematische Darstellung in der eingereichten (fachfremden) Lösung\n  • Rechenschritte sind in sich nachvollziehbar für Analysis\n\n📌 **Verbesserungsmöglichkeiten:**\n  • Fachliche Themenverfehlung (Kostenrechnung nicht bearbeitet)\n  • Keine Bearbeitung der im Bewertungsraster geforderten Aufgabeninhalte\n",
+    "status": "success"
+  }
+]
