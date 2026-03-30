@@ -343,51 +343,56 @@ async def extract_text_from_pdf(pdf_path: str, context: str = "exam", model: str
         result["method"] = "debug_skip_vision"
         return result
 
-    try:
-        text = await extract_text_with_vision(images, context=context, model=model)
-    except RuntimeError as vision_error:
-        # If vision provider fails, try fallback strategies
-        error_msg = str(vision_error).lower()
-        
-        # For solutions, try fallback to native extraction if available
-        if context == "solution" and native_solution_text and len(native_solution_text) >= 120:
-            print(f"[OCR] Vision failed, using native PDF text fallback ({len(native_solution_text)} chars)")
-            result["method"] = "native_pdf_text_fallback_after_vision_error"
-            result["text"] = native_solution_text
-            result["quality"] = "degraded_native_fallback"
-            return result
-        
-        # For exams, also try native but it's less reliable
-        if context == "exam":
-            native = extract_text_native(pdf_path)
-            if native.get("text") and len(native.get("text", "")) >= 120:
-                print(f"[OCR] Vision failed for exam, trying native PDF text ({len(native['text'])} chars)")
-                result["method"] = "native_pdf_text_fallback_after_vision_error"
-                result["text"] = native["text"]
-                result["quality"] = "degraded_native_fallback"
+    # Try Vision OCR with configured model, then fallback to free models if it fails
+    models_to_try = [model]  # Primary model first
+    
+    # Add fallback models if primary model is not a free model
+    if model != "google/gemini-2.0-flash-exp:free":
+        models_to_try.append("google/gemini-2.0-flash-exp:free")  # Free fallback
+    
+    last_error = None
+    for attempt_model in models_to_try:
+        try:
+            print(f"[OCR] '{filename}': Attempting Vision OCR with {attempt_model}...")
+            text = await extract_text_with_vision(images, context=context, model=attempt_model)
+            if text and text.strip():
+                result["text"] = text
+                result["method"] = "vision_ocr"
+                if attempt_model != model:
+                    result["method"] = f"vision_ocr_fallback ({attempt_model})"
+                print(f"[OCR] '{filename}': Vision OCR completed ({len(text)} chars, {len(images)} pages, model: {attempt_model})")
+                print(f"[OCR] KI-extrahierter Text von '{filename}':")
+                print(f"  {'─'*60}")
+                for line in text.split('\n'):
+                    print(f"  │ {line}")
+                print(f"  {'─'*60}")
                 return result
-        
-        # No fallback available - re-raise the vision error
-        print(f"[OCR] Vision OCR failed and no fallback available: {vision_error}")
-        raise
-    except Exception as exc:
-        # Unexpected errors - try fallback for solutions
-        if context == "solution" and native_solution_text and len(native_solution_text) >= 120:
-            print(f"[OCR] Unexpected error, using native PDF text fallback: {exc}")
-            result["method"] = "native_pdf_text_fallback_after_unexpected_error"
-            result["text"] = native_solution_text
+        except RuntimeError as vision_error:
+            last_error = str(vision_error)
+            print(f"[OCR] Vision OCR failed with {attempt_model}: {last_error}")
+            if attempt_model != models_to_try[-1]:  # If not last model, try next
+                continue
+            break
+
+    # If all Vision OCR attempts failed, try fallback to native text if available
+    if context == "solution" and native_solution_text and len(native_solution_text) >= 120:
+        print(f"[OCR] Vision OCR failed, using native PDF text fallback ({len(native_solution_text)} chars)")
+        result["method"] = "native_pdf_text_fallback_after_vision_error"
+        result["text"] = native_solution_text
+        result["quality"] = "degraded_native_fallback"
+        return result
+
+    # For exams, also try native but it's less reliable
+    if context == "exam":
+        native = extract_text_native(pdf_path)
+        if native.get("text") and len(native.get("text", "")) >= 120:
+            print(f"[OCR] Vision OCR failed for exam, trying native PDF text ({len(native['text'])} chars)")
+            result["method"] = "native_pdf_text_fallback_after_vision_error"
+            result["text"] = native["text"]
             result["quality"] = "degraded_native_fallback"
             return result
-        raise
 
-    if not text.strip():
-        raise RuntimeError(f"Kein OCR-Text extrahiert für Datei '{filename}' (Modell: {model})")
-    print(f"[OCR] '{filename}': Vision OCR completed ({len(text)} chars, {len(images)} pages)")
-    print(f"[OCR] KI-extrahierter Text von '{filename}':")
-    print(f"  {'─'*60}")
-    for line in text.split('\n'):
-        print(f"  │ {line}")
-    print(f"  {'─'*60}")
-    result["text"] = text
-
-    return result
+    # No fallback available - raise error with last Vision OCR error
+    if last_error:
+        raise RuntimeError(f"OCR failed after trying {len(models_to_try)} models. Last error: {last_error}")
+    raise RuntimeError(f"Kein OCR-Text extrahiert für Datei '{filename}' (Modelle versucht: {', '.join(models_to_try)})")
