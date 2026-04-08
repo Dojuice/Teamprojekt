@@ -10,7 +10,7 @@ interface ChatMessageProps {
 
 /* ──────────────────── Evaluation Results Renderer ──────────────────── */
 const EvaluationResultsView: React.FC<{ results: EvaluationResults }> = ({ results }) => {
-  const { items, totalExams, successCount, averageScore, averageGrade, downloadAllUrl } = results;
+  const { items, totalExams, successCount, averageScore, averageGrade, downloadAllUrl, evalModel, ocrModel, rubricTaskCount } = results;
   const isMultiple = totalExams > 1;
   const successItems = items.filter((it) => it.status === 'success');
 
@@ -121,6 +121,14 @@ const EvaluationResultsView: React.FC<{ results: EvaluationResults }> = ({ resul
             </a>
           </div>
         </>
+      )}
+
+      {(evalModel || ocrModel) && (
+        <div className="eval-debug-meta">
+          <span>Eval-Modell: {evalModel || '–'}</span>
+          <span>OCR-Modell: {ocrModel || '–'}</span>
+          {typeof rubricTaskCount === 'number' && <span>Rubrik-Aufgaben: {rubricTaskCount}</span>}
+        </div>
       )}
     </div>
   );

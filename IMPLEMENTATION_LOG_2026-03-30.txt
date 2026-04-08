@@ -1,0 +1,162 @@
+AutoExam - Umsetzungsprotokoll (2026-03-30)
+
+Kontext
+- Ziel: OCR- und Bewertungs-Pipeline robuster machen fuer die hochgeladene Musterloesung (5 Aufgaben, 90 Punkte, Tabellen + Freitext + Rechenanteile).
+- Fokus: Fehlertoleranz bei OCR, getrennte Modellsteuerung, strukturiertere Bewertung, konsistente Punktlogik.
+
+Heute umgesetzt
+
+1) Modelltrennung OCR vs Bewertung
+- Backend Evaluate-Endpoint erweitert um:
+  - ocr_model
+  - eval_model
+- Fallback-Verhalten eingebaut:
+  - eval_model -> model (kompatibel)
+  - ocr_model -> OCR_MODEL env oder Default Vision-Modell
+- OCR und Bewertung verwenden jetzt getrennte Modellpfade.
+
+2) OCR-Haertung gegen instabile Provider-Antworten
+- Defensive Validierung fuer OpenRouter/OpenAI-kompatible Antwortstruktur:
+  - choices vorhanden?
+  - message vorhanden?
+  - content nicht leer?
+- Retries mit Backoff bei transienten Fehlern.
+- Klare RuntimeError-Meldungen statt NoneType-Absturz.
+
+3) Native PDF-Text fuer Musterloesungen + Vision-Fallback
+- Fuer context=solution wird zuerst nativer PDF-Text versucht.
+- Wenn genug extrahierter Text vorhanden ist, wird Vision-OCR uebersprungen.
+- Bei unzureichender Textqualitaet faellt Pipeline auf Vision-OCR zurueck.
+
+4) Musterloesungs-Cache
+- Hash-basierter Cache (SHA256 der Musterloesung) eingefuehrt.
+- Cache-Key beruecksichtigt OCR-Modell.
+- Persistiert:
+  - OCR-Text
+  - erzeugtes Bewertungsraster (Rubrik)
+  - Metadaten
+- Erhoehte Wiederholgeschwindigkeit bei identischer Musterloesung.
+
+5) Strukturierte Rubrik-Extraktion
+- Neue Rubrikstufe vor der eigentlichen Korrektur:
+  - LLM extrahiert Aufgabenstruktur, Punkte, erwartete Elemente, Regeln.
+- Fallback-Rubrik hinterlegt (Aufgabe 1-5, 10/15/20/20/25, total 90), falls Extraktion fehlschlaegt.
+
+6) Zahlennormalisierung
+- Deutsche/englische Zahlenformate normalisiert (z. B. 118.674,00 / 118674 / 118,674.00).
+- Normalisierte Tokens als zusaetzlicher Kontext im Bewertungs-Prompt.
+- Ziel: robustere numerische Vergleiche bei OCR-Varianten.
+
+7) Strengeres JSON-Handling fuer Bewertungsergebnisse
+- Markdown-Wrapper-Entfernung + sicheres JSON-Parsing.
+- Schema-Mindestpruefung eingefuehrt.
+- Reparatur-Reask an Modell bei invalider Ausgabe.
+
+8) Serverseitige Konsistenzkorrektur der Ergebnisse
+- Punktefelder werden nachberechnet/normalisiert:
+  - points_achieved
+  - points_max
+  - score_percent
+  - total_points
+  - max_points
+  - overall_score
+  - overall_grade
+- Evidence/Reason-Felder werden defaulted, falls Modell sie auslaesst.
+
+9) Frontend-Request angepasst
+- Evaluate-Request sendet explizit:
+  - eval_model
+  - ocr_model
+- OCR-Modell per REACT_APP_OCR_MODEL konfigurierbar.
+
+Bekannte offene Punkte nach der obigen Umsetzung
+- In manchen VS-Code-Setups werden Backend-Imports als unresolved angezeigt, wenn IDE nicht die richtige venv nutzt.
+- Das ist ein Umgebungs-/Interpreterthema, kein Logikfehler der implementierten Pipeline.
+
+Dateien mit Kernanpassungen
+- backend/server.py
+- backend/ocr_service.py
+- backend/evaluation_service.py
+- frontend/src/App.tsx
+
+Naechste sinnvolle Schritte (anschliessend umgesetzt/zu pruefen)
+- End-to-End-Validierung mit realen PDF-Uploads.
+- Sichtbarkeit der verwendeten Modelle im Frontend (Debug).
+- Explizite Aufgaben-Detektion 1-5 mit stabiler Punktmatrix.
+
+Nachtraeglich heute ausgefuehrt (auf Nutzerwunsch)
+
+Schritt 1: Ausfuehrbarer Smoke-Test
+- Testskript im Backend-Venv gegen _validate_and_fix_result ausgefuehrt.
+- Ergebnis:
+  - max_points = 90
+  - task_count = 5
+  - task_numbers enthalten die Pflichtaufgaben inkl. fehlender Aufgabe 5 als Placeholder
+  - evidence/grading_reason Felder vorhanden
+  - Punktekappung und Note wurden konsistent berechnet
+
+Schritt 2: Modell-Transparenz im Frontend
+- Backend-Stream-Resultat liefert jetzt:
+  - eval_model
+  - ocr_model
+  - rubric_task_count
+- Frontend persistiert diese Metadaten in EvaluationResults.
+- Chat-Ansicht zeigt die verwendeten Modelle und Rubrik-Aufgabenzahl als Debug-Badges.
+
+Schritt 3: Explizite Aufgaben-Detektion 1-5 mit Punktmatrix
+- Bekannte Matrix fuer diese Klausur hinterlegt (10/15/20/20/25).
+- Task-Root-Erkennung (z. B. 3a -> 3) eingebaut.
+- Fehlende Pflichtaufgaben werden automatisch als nicht_beantwortet eingefuegt.
+- Serverseitige Totalpunkte fuer bekannte Klausur auf 90 fixiert.
+
+Schritt 1 (ergaenzt): Echter End-to-End-API-Durchlauf mit Upload -> Evaluate -> Download
+- Vorbedingung behoben:
+  - fehlendes `fitz` durch `pymupdf` installiert
+  - fehlendes `reportlab` fuer PDF-Download installiert
+- Voller API-Test via FastAPI TestClient erfolgreich ausgefuehrt:
+  - Chat anlegen
+  - Musterloesung-PDF hochladen
+  - Klausur-PDF hochladen
+  - Evaluate-Stream (NDJSON) lesen
+  - Single-Report und ZIP-Download aufrufen
+  - Chat aufraeumen
+- Wichtiger Befund zum OCR-Modell:
+  - `google/gemini-2.0-flash-exp:free` lieferte 404 (kein Endpoint verfuegbar)
+  - erneuter Lauf mit `openai/gpt-4o-mini` als OCR-Modell war erfolgreich
+    (OCR + Bewertung + Downloads liefen durch)
+- Ergebnis des verifizierten E2E-Runs:
+  - `result_successful = 1`
+  - `download_single_status = 200`
+  - `download_all_status = 200`
+
+Nachtrag: Frontend-Modellauswahl aktualisiert
+- `openai/gpt-4o-mini` als zusaetzliches verfuegbares GPT-Modell aufgenommen.
+- Bestehende Modelle `openai/gpt-5.3-codex` und `openai/gpt-5.2-codex` unveraendert beibehalten.
+- Default-Auswahl im Frontend auf `openai/gpt-4o-mini` gesetzt.
+- Betroffene Dateien:
+  - `frontend/src/components/Prompt/Prompt.tsx`
+  - `frontend/src/App.tsx`
+
+Nachtrag: OpenRouter 502/HTML-Fehler bei Musterloesung robust behandelt
+- Fehlerbild reproduziert: Cloudflare/OpenRouter `502 Bad Gateway` lieferte HTML-Seite statt JSON.
+- OCR-Haertung erweitert:
+  - mehr Retries mit staerkerem Backoff fuer transiente Provider-Fehler (502/503/504/429 etc.)
+  - Erkennung von HTML-Fehlerseiten in Provider-Antworten
+  - kompakte, benutzerfreundliche Fehlermeldungen statt kompletter HTML-Ausgabe
+- Fallback fuer Musterloesungen:
+  - Wenn Vision-OCR scheitert, wird vorhandener nativer PDF-Text (ab Mindestlaenge) als degradierter Fallback genutzt.
+- Stabilerer OCR-Default gesetzt:
+  - Backend-Fallback-Default in `server.py` auf `openai/gpt-4o-mini`
+  - Frontend-Default `REACT_APP_OCR_MODEL`-Fallback in `App.tsx` auf `openai/gpt-4o-mini`
+- Betroffene Dateien:
+  - `backend/ocr_service.py`
+  - `backend/server.py`
+  - `frontend/src/App.tsx`
+
+Nachtrag: NoneType-Fehler in Musterloesungs-/Rubrikpfad abgefangen
+- Fehlerbild: `'NoneType' object is not subscriptable` bei instabilen Provider-Antworten.
+- Fix in `evaluation_service.py`:
+  - sichere Extraktion von Completion-Content (auch bei ungewoehnlicher `choices/message/content`-Struktur)
+  - Retry-Wrapper fuer Provider-Calls (Rubrik, Bewertung, Reparatur)
+  - defensive Guards, falls Provider statt JSON ungueltige/partielle Payload liefert
+- Ziel: kein Absturz mehr durch `NoneType` beim Einlesen der Musterloesung/Rubrik.

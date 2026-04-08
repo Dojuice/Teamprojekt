@@ -1,0 +1,8 @@
+[
+  {
+    "filename": "mathe_exam_Handwritten1.pdf",
+    "status": "error",
+    "error": "Vision-OCR fehlgeschlagen (google/gemini-2.0-flash-exp:free): Error code: 404 - {'error': {'message': 'No endpoints found for google/gemini-2.0-flash-exp:free.', 'code': 404}, 'user_id': 'user_3AK3Er6uIIrb66FJiZCzN6HEcrK'}",
+    "formatted_text": "Fehler bei der Bewertung von mathe_exam_Handwritten1.pdf: Vision-OCR fehlgeschlagen (google/gemini-2.0-flash-exp:free): Error code: 404 - {'error': {'message': 'No endpoints found for google/gemini-2.0-flash-exp:free.', 'code': 404}, 'user_id': 'user_3AK3Er6uIIrb66FJiZCzN6HEcrK'}"
+  }
+]

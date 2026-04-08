@@ -3,19 +3,59 @@ OCR Service – PDF to text extraction using PyMuPDF + OpenRouter Vision.
 
 Flow:
 1. PDF → Images (via PyMuPDF/fitz)
-2. Images → Text (via OpenRouter Vision API – any model with vision support)
-3. Also supports direct text extraction from typed PDFs
+2. Images → Text (via OpenRouter Vision API – AI Vision OCR)
 """
 
 import fitz  # PyMuPDF
 import base64
-import io
 import os
+import asyncio
+import re
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, List, Optional
 from openai import OpenAI
+from openai import APIError, APIConnectionError
 
 _client: Optional[OpenAI] = None
+
+
+def _clean_provider_error_message(raw: str) -> str:
+    """Normalize provider errors to user-safe concise text."""
+    text = (raw or "").strip()
+    lowered = text.lower()
+
+    if "<!doctype html" in lowered or "<html" in lowered:
+        if "502" in lowered and "bad gateway" in lowered:
+            return "OpenRouter/Cloudflare meldet temporär 502 Bad Gateway."
+        return "Provider lieferte eine HTML-Fehlerseite statt API-JSON."
+
+    compact = re.sub(r"\s+", " ", text)
+    if len(compact) > 320:
+        return compact[:320] + "..."
+    return compact
+
+
+def _is_transient_provider_error(exc: Exception) -> bool:
+    """Return True for temporary provider/network conditions that should be retried."""
+    status_code = getattr(exc, "status_code", None)
+    if status_code in {408, 409, 425, 429, 500, 502, 503, 504}:
+        return True
+
+    msg = str(exc).lower()
+    transient_markers = (
+        "bad gateway",
+        "error code: 502",
+        "temporarily unavailable",
+        "timed out",
+        "timeout",
+        "rate limit",
+        "connection",
+        "service unavailable",
+        "upstream",
+        "<!doctype html",
+        "<html",
+    )
+    return any(marker in msg for marker in transient_markers)
 
 
 def get_client() -> OpenAI:
@@ -60,33 +100,6 @@ def pdf_to_images(pdf_path: str, dpi: int = 200) -> List[bytes]:
     return images
 
 
-def extract_text_direct(pdf_path: str) -> str:
-    """Extract text directly from a PDF (works for typed/digital PDFs).
-
-    Args:
-        pdf_path: Path to the PDF file.
-
-    Returns:
-        Extracted text content.
-    """
-    doc = fitz.open(pdf_path)
-    text_parts: List[str] = []
-
-    for page_num, page in enumerate(doc, 1):
-        text = page.get_text()
-        if text.strip():
-            text_parts.append(text.strip())
-
-        # Debug: Print extracted text per page
-        if os.getenv("DEBUG_OCR") == "true":
-            print(f"\n=== Page {page_num} Direct Extraction ===")
-            print(text if text.strip() else "[No text found]")
-            print("=" * 50)
-
-    doc.close()
-    return "\n\n---\n\n".join(text_parts)
-
-
 def images_to_base64(images: List[bytes]) -> List[str]:
     """Convert image bytes to base64 strings for the API."""
     return [base64.b64encode(img).decode("utf-8") for img in images]
@@ -126,12 +139,27 @@ async def extract_text_with_vision(images: List[bytes], context: str = "exam", m
     Returns:
         Extracted text from all images.
     """
+    math_instructions = (
+        "Schreibe alle mathematischen Ausdrücke in LaTeX-Notation (OHNE $-Zeichen oder LaTeX-Umgebungen). "
+        "Beispiele: Potenzen als x^2, x^3; Brüche als \\frac{a}{b}; Grenzwerte als \\lim_{x \\to 2}; "
+        "Integrale als \\int_0^2; Ableitungen als f'(x), f''(x); Wurzeln als \\sqrt{x}; "
+        "Summen als \\sum_{i=1}^{n}; griechische Buchstaben als \\alpha, \\beta etc. "
+        "Normaler Text bleibt normaler Text – nur mathematische Symbole und Formeln in LaTeX-Notation."
+    )
+
     if context == "exam":
         system_prompt = (
             "Du bist ein OCR-Spezialist. Extrahiere den gesamten Text aus den folgenden "
             "Klausur-Seiten. Achte besonders auf handschriftliche Antworten. "
             "Gib den Text strukturiert zurück – trenne verschiedene Aufgaben klar voneinander. "
             "Wenn du unsicher bist, markiere die Stelle mit [unleserlich]. "
+            "WICHTIG: Extrahiere EXAKT das, was der Student geschrieben hat – Buchstabe für Buchstabe, Zahl für Zahl. "
+            "Du darfst NIEMALS interpretieren, was der Student gemeint haben könnte oder was mathematisch korrekt wäre. "
+            "Wenn dort eine 3 steht, schreibe eine 3 – auch wenn das Ergebnis dann mathematisch falsch ist. "
+            "Wenn dort eine 2 steht, schreibe eine 2. Verändere KEINE Zahlen, Vorzeichen oder Symbole, "
+            "um ein 'richtigeres' Ergebnis zu erzeugen. Du bist ein neutraler Textextraktor, KEIN Korrektor. "
+            "Deine Aufgabe ist NUR das exakte Ablesen der Handschrift, nicht das Korrigieren oder Interpretieren. "
+            f"{math_instructions} "
             "Gib NUR den extrahierten Text zurück, keine Kommentare."
         )
     else:
@@ -139,6 +167,7 @@ async def extract_text_with_vision(images: List[bytes], context: str = "exam", m
             "Du bist ein OCR-Spezialist. Extrahiere den gesamten Text aus den folgenden "
             "Musterlösungs-Seiten. Gib den Text strukturiert zurück – trenne verschiedene "
             "Aufgaben und Teilaufgaben klar voneinander. "
+            f"{math_instructions} "
             "Gib NUR den extrahierten Text zurück, keine Kommentare."
         )
 
@@ -156,25 +185,118 @@ async def extract_text_with_vision(images: List[bytes], context: str = "exam", m
             },
         })
 
-    response = client.chat.completions.create(
-        model=model,
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": content},
-        ],
-        max_tokens=4096,
-        temperature=0.1,
-    )
-    return response.choices[0].message.content or ""
+    last_error = "Leere oder unvollständige OCR-Antwort vom Modell"
+    max_attempts = 5
+    for attempt in range(1, max_attempts + 1):
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": content},
+                ],
+                max_tokens=4096,
+                temperature=0.1,
+            )
+
+            # Validate that response has expected structure
+            if response is None:
+                last_error = "API gab None-Objekt zurück statt gültige Response"
+                raise ValueError(last_error)
+
+            choices: Any = getattr(response, "choices", None)
+            if choices is None:
+                last_error = "Response hat 'choices'-Feld aber es ist None"
+                raise ValueError(last_error)
+            if not isinstance(choices, (list, tuple)) or len(choices) == 0:
+                last_error = f"Response 'choices' ist leer oder kein Array: {type(choices)}"
+                raise ValueError(last_error)
+
+            message = getattr(choices[0], "message", None)
+            if not message:
+                last_error = f"First choice hat keine 'message': {choices[0]}"
+                raise ValueError(last_error)
+
+            content_text = getattr(message, "content", None)
+            if content_text is None:
+                last_error = "Message hat 'content' Feld aber es ist None"
+                raise ValueError(last_error)
+            if not str(content_text).strip():
+                last_error = "Message 'content' ist leerer String oder Whitespace"
+                raise ValueError(last_error)
+
+            return str(content_text)
+        except (APIError, APIConnectionError) as api_exc:
+            # OpenAI/OpenRouter API errors - use _clean_provider_error_message
+            last_error = _clean_provider_error_message(str(api_exc))
+            if attempt < max_attempts:
+                # Retry transient errors with backoff
+                if _is_transient_provider_error(api_exc):
+                    print(f"[OCR] Attempt {attempt}/{max_attempts}: Transient API error, retrying... ({last_error})")
+                    await asyncio.sleep(min(1.5 * attempt, 8.0))
+                else:
+                    print(f"[OCR] Attempt {attempt}/{max_attempts}: Non-transient API error, giving up: {last_error}")
+                    break
+        except ValueError as val_exc:
+            # Response structure validation errors - these are usually not transient
+            last_error = str(val_exc)
+            print(f"[OCR] Attempt {attempt}/{max_attempts}: Invalid response structure: {last_error}")
+            # Don't retry - response structure issues won't be fixed by retrying
+            break
+        except Exception as exc:
+            # Generic exceptions
+            last_error = _clean_provider_error_message(str(exc))
+            if attempt < max_attempts:
+                if _is_transient_provider_error(exc):
+                    print(f"[OCR] Attempt {attempt}/{max_attempts}: Transient error, retrying... ({last_error})")
+                    await asyncio.sleep(min(1.5 * attempt, 8.0))
+                else:
+                    print(f"[OCR] Attempt {attempt}/{max_attempts}: Non-transient error: {last_error}")
+
+    raise RuntimeError(f"Vision-OCR fehlgeschlagen ({model}): {last_error}")
 
 
-async def extract_text_from_pdf(pdf_path: str, context: str = "exam", force_vision: bool = False, model: str = "google/gemini-2.0-flash-exp:free") -> dict:
-    """Extract text from a PDF file – tries direct extraction first, falls back to Vision OCR.
+def extract_text_native(pdf_path: str) -> dict:
+    """Try native PDF text extraction for typed PDFs before falling back to Vision OCR.
+    
+    Args:
+        pdf_path: Path to the PDF file.
+    
+    Returns:
+        Dict with extracted text and metadata. text may be empty string if no text found.
+    """
+    filename = Path(pdf_path).name
+    chunks: List[str] = []
+
+    try:
+        doc = fitz.open(pdf_path)
+        try:
+            for page in doc:
+                page_text = page.get_text("text") or ""
+                if page_text.strip():
+                    chunks.append(page_text.strip())
+        finally:
+            doc.close()
+    except Exception as e:
+        print(f"[OCR] Error during native PDF extraction for '{filename}': {e}")
+        pass  # Return empty result, don't fail
+
+    text = "\n\n".join(chunks).strip()
+    quality = "high" if len(text) >= 600 else ("medium" if len(text) >= 120 else "low")
+    return {
+        "filename": filename,
+        "method": "native_pdf_text",
+        "text": text,
+        "quality": quality,
+    }
+
+
+async def extract_text_from_pdf(pdf_path: str, context: str = "exam", model: str = "openai/gpt-4o-mini") -> dict:
+    """Extract text from a PDF file using AI Vision OCR.
 
     Args:
         pdf_path: Path to the PDF file.
         context: 'exam' or 'solution'.
-        force_vision: If True, always use Vision OCR (for handwritten content).
         model: OpenRouter model ID.
 
     Returns:
@@ -183,10 +305,10 @@ async def extract_text_from_pdf(pdf_path: str, context: str = "exam", force_visi
     filename = Path(pdf_path).name
     result = {
         "filename": filename,
-        "method": "direct",
+        "method": "vision_ocr",
         "text": "",
         "page_count": 0,
-        "quality": "good",
+        "quality": "ocr",
     }
 
     # Get page count
@@ -194,49 +316,83 @@ async def extract_text_from_pdf(pdf_path: str, context: str = "exam", force_visi
     result["page_count"] = len(doc)
     doc.close()
 
-    # Step 1: Always try direct text extraction first (free, instant, no API call)
-    direct_text = extract_text_direct(pdf_path)
-    char_count = len(direct_text.strip())
-    min_chars_per_page = 20  # expect at least 20 chars per page for typed PDFs
-    min_threshold = max(50, result["page_count"] * min_chars_per_page)
+    native_solution_text = ""
 
-    if char_count >= min_threshold and not force_vision:
-        print(f"[OCR] '{filename}': Direct text extraction successful ({char_count} chars) – no API call needed")
-        result["text"] = direct_text
-        result["method"] = "direct"
+    # Try native extraction first for non-handwritten contexts (typically printed model solutions).
+    if context == "solution":
+        native = extract_text_native(pdf_path)
+        native_solution_text = native.get("text", "")
+        if native["text"] and len(native["text"]) >= 600:
+            result["method"] = native["method"]
+            result["text"] = native["text"]
+            result["quality"] = native["quality"]
+            print(f"[OCR] '{filename}': Native PDF text extraction used ({len(result['text'])} chars)")
+            return result
 
-        # Debug: Print extracted text
-        if os.getenv("DEBUG_OCR") == "true":
-            print(f"\n{'='*60}")
-            print(f"EXTRACTED TEXT FROM '{filename}' (Direct Method):")
-            print(f"{'='*60}")
-            print(direct_text)
-            print(f"{'='*60}\n")
+    print(f"[OCR] '{filename}': Using AI Vision OCR ({result['page_count']} pages, model: {model})")
 
-        return result
-
-    if char_count > 0 and not force_vision:
-        print(f"[OCR] '{filename}': Direct extraction found only {char_count} chars (threshold: {min_threshold}), falling back to Vision OCR")
-    elif force_vision:
-        print(f"[OCR] '{filename}': force_vision=True, using Vision OCR")
-    else:
-        print(f"[OCR] '{filename}': No text found via direct extraction, falling back to Vision OCR")
-
-    # Step 2: Fall back to Vision OCR (for handwritten/scanned PDFs)
-    images = pdf_to_images(pdf_path, dpi=150)  # Lower DPI to reduce token usage
+    # Convert PDF to images for Vision OCR
+    images = pdf_to_images(pdf_path, dpi=150)
 
     # Debug: Save images to disk for inspection
     if os.getenv("DEBUG_OCR") == "true":
         save_images_for_debug(images, pdf_path)
         print(f"[DEBUG] Vision OCR would be called here, but skipping due to DEBUG mode")
         print(f"[DEBUG] Images saved. You can manually inspect them.")
-        result["text"] = f"[DEBUG MODE] Direct extraction: {char_count} chars. Images saved for inspection."
+        result["text"] = f"[DEBUG MODE] Images saved for inspection."
         result["method"] = "debug_skip_vision"
         return result
 
-    text = await extract_text_with_vision(images, context=context, model=model)
-    result["text"] = text
-    result["method"] = "vision_ocr"
-    result["quality"] = "ocr"
+    # Try Vision OCR with configured model, then fallback to free models if it fails
+    models_to_try = [model]  # Primary model first
+    
+    # Add fallback models if primary model is not a free model
+    if model != "google/gemini-2.0-flash-exp:free":
+        models_to_try.append("google/gemini-2.0-flash-exp:free")  # Free fallback
+    
+    last_error = None
+    for attempt_model in models_to_try:
+        try:
+            print(f"[OCR] '{filename}': Attempting Vision OCR with {attempt_model}...")
+            text = await extract_text_with_vision(images, context=context, model=attempt_model)
+            if text and text.strip():
+                result["text"] = text
+                result["method"] = "vision_ocr"
+                if attempt_model != model:
+                    result["method"] = f"vision_ocr_fallback ({attempt_model})"
+                print(f"[OCR] '{filename}': Vision OCR completed ({len(text)} chars, {len(images)} pages, model: {attempt_model})")
+                print(f"[OCR] KI-extrahierter Text von '{filename}':")
+                print(f"  {'─'*60}")
+                for line in text.split('\n'):
+                    print(f"  │ {line}")
+                print(f"  {'─'*60}")
+                return result
+        except RuntimeError as vision_error:
+            last_error = str(vision_error)
+            print(f"[OCR] Vision OCR failed with {attempt_model}: {last_error}")
+            if attempt_model != models_to_try[-1]:  # If not last model, try next
+                continue
+            break
 
-    return result
+    # If all Vision OCR attempts failed, try fallback to native text if available
+    if context == "solution" and native_solution_text and len(native_solution_text) >= 120:
+        print(f"[OCR] Vision OCR failed, using native PDF text fallback ({len(native_solution_text)} chars)")
+        result["method"] = "native_pdf_text_fallback_after_vision_error"
+        result["text"] = native_solution_text
+        result["quality"] = "degraded_native_fallback"
+        return result
+
+    # For exams, also try native but it's less reliable
+    if context == "exam":
+        native = extract_text_native(pdf_path)
+        if native.get("text") and len(native.get("text", "")) >= 120:
+            print(f"[OCR] Vision OCR failed for exam, trying native PDF text ({len(native['text'])} chars)")
+            result["method"] = "native_pdf_text_fallback_after_vision_error"
+            result["text"] = native["text"]
+            result["quality"] = "degraded_native_fallback"
+            return result
+
+    # No fallback available - raise error with last Vision OCR error
+    if last_error:
+        raise RuntimeError(f"OCR failed after trying {len(models_to_try)} models. Last error: {last_error}")
+    raise RuntimeError(f"Kein OCR-Text extrahiert für Datei '{filename}' (Modelle versucht: {', '.join(models_to_try)})")

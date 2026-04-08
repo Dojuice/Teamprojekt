@@ -7,6 +7,7 @@ import { ChatMessageData, FileAttachment, ChatSummary, UploadProgress, AIModel, 
 import './App.css';
 
 const API_URL: string = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+const OCR_MODEL: string = process.env.REACT_APP_OCR_MODEL || 'openai/gpt-4o-mini';
 
 const App: React.FC = () => {
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
@@ -15,7 +16,7 @@ const App: React.FC = () => {
   const [activeChatId, setActiveChatId] = useState<number | null>(null);
   const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
   const [isBotTyping, setIsBotTyping] = useState(false);
-  const [selectedModel, setSelectedModel] = useState<AIModel>('google/gemini-3-flash-preview');
+  const [selectedModel, setSelectedModel] = useState<AIModel>('openai/gpt-4o-mini');
   const [evalProgress, setEvalProgress] = useState<EvalProgress | null>(null);
 
   // Load welcome message for a fresh (unsaved) state
@@ -248,7 +249,7 @@ const App: React.FC = () => {
   ): Promise<{ evalData: any | null; error: string | null }> => {
     try {
       const evalRes = await fetch(
-        `${API_URL}/api/chats/${chatId}/evaluate?additional_instructions=${encodeURIComponent(text)}&model=${encodeURIComponent(selectedModel)}`,
+        `${API_URL}/api/chats/${chatId}/evaluate?additional_instructions=${encodeURIComponent(text)}&eval_model=${encodeURIComponent(selectedModel)}&ocr_model=${encodeURIComponent(OCR_MODEL)}`,
         { method: 'POST' }
       );
 
@@ -345,6 +346,9 @@ const App: React.FC = () => {
       successCount,
       averageScore: avgScore,
       averageGrade: avgGrade,
+      evalModel: evalData.eval_model,
+      ocrModel: evalData.ocr_model,
+      rubricTaskCount: evalData.rubric_task_count,
       downloadAllUrl: totalExams > 1 ? `${API_URL}/api/chats/${chatId}/download-all` : undefined,
     };
 

@@ -32,8 +32,11 @@
 - [x] OCR-Service implementieren (OpenAI Vision via GPT-4o)
 - [x] PDF → Bild-Konvertierung (PyMuPDF/fitz)
 - [x] Text-Extraktion aus handschriftlichen Antworten
-- [x] Qualitätsprüfung der OCR-Ergebnisse (direct vs. Vision fallback)
 - [x] Google Gemini Vision als alternatives OCR-Backend
+- [x] Direkte Text-Extraktion entfernt – ausschließlich AI Vision OCR
+- [x] LaTeX-Notation für mathematische Ausdrücke in OCR-Ausgabe (x^2, \lim, \frac etc.)
+- [x] Neutraler Textextraktor: KI darf Zahlen/Symbole nicht interpretieren oder korrigieren
+- [x] Backend-Konsolen-Logging: OCR-Fortschritt, extrahierter Text pro Klausur (Vision + Direct)
 
 ### 2.4 KI-Bewertung
 - [x] OpenAI API-Anbindung (GPT-4o / Vision)
@@ -46,6 +49,12 @@
   - Fehlende Elemente identifizieren
   - Begründung / Erklärung generieren
 - [x] Ergebnis als strukturiertes JSON zurückgeben
+- [x] Punkteverteilung wird aus der Musterlösung extrahiert (nicht geschätzt)
+- [x] Folgefehler-Regelung: nur -1 Punkt Abzug statt komplett falsch
+- [x] Alternative Lösungswege werden akzeptiert (volle Punkte bei korrekter Methode)
+- [x] Faire Teilpunkte: Rechenweg wird bewertet, kleine Fehler ≠ "falsch"
+- [x] Backend-Konsolen-Logging: Korrektur-Fortschritt, Ergebnis pro Klausur mit Aufgabendetails
+- [x] Jede Klausur hat eigenen API-Call (separate Bewertung pro Student)
 
 ### 2.5 Ergebnis-Download
 - [x] Korrigierte Klausur als PDF generieren (Bewertung + Kommentare)
@@ -81,9 +90,10 @@
 
 ### 3.3 KI-Modellauswahl
 - [x] Model-Selector Dropdown in der Prompt-Leiste
-- [x] Gemini 2.0 Flash als kostenloser Standard voreingestellt
-- [x] GPT-4o als Premium-Option wählbar
+- [x] GPT-5.3 Codex als Standard voreingestellt
+- [x] GPT-5.2 Codex als alternative Option wählbar
 - [x] Modell-Auswahl wird an Backend-API übergeben (`model` Query-Parameter)
+- [x] Extraktionsmethoden-Auswahl (Auto/Vision/Direkt) implementiert und wieder entfernt – nur noch AI Vision OCR
 
 ### 3.4 Styling & UX
 - [x] Grundlegendes Styling (CSS für alle Komponenten)
@@ -96,6 +106,21 @@
 - [x] Drag & Drop für Datei-Upload
 - [x] Aufeinanderfolgende Bot-Nachrichten werden kompaktiert (in eine Nachricht zusammengefasst)
 - [x] Streaming-Animation nur für neue Nachrichten (nicht beim Laden alter Chats)
+
+## Phase 3.5: OCR-Optimierung (Branch: OCROptimization)
+
+- [x] Backend-Konsolen-Logging für OCR-Extraktion (Fortschritt x/n, extrahierter Text)
+- [x] Backend-Konsolen-Logging für KI-Bewertung (Fortschritt, Ergebnis pro Klausur)
+- [x] Jede Klausur hat eigenen API-Call für OCR und Bewertung
+- [x] Extraktionsmethoden-Auswahl implementiert (Auto/KI-Vision/Direkt) – später vereinfacht auf nur AI Vision
+- [x] Direkte PDF-Text-Extraktion komplett entfernt – nur noch AI Vision OCR
+- [x] LaTeX-Math-Notation in OCR-Ausgabe (x^2, \lim, \frac, \int etc.)
+- [x] OCR-Neutralität: KI extrahiert exakt, was geschrieben steht (keine Interpretation/Korrektur)
+- [x] Punkteverteilung wird aus Musterlösung extrahiert (nicht mehr geschätzt)
+- [x] Folgefehler-Regelung: nur -1 Punkt Abzug bei korrekt weitergerechnetem Fehler
+- [x] Alternative Lösungswege werden akzeptiert und voll bewertet
+- [x] Faire Bewertung: Rechenweg zählt, kleine Rechenfehler ≠ gesamte Aufgabe falsch
+- [x] Modell-Auswahl reduziert auf GPT-5.3 Codex + GPT-5.2 Codex
 
 ## Phase 4: Integration & Testing
 
@@ -123,8 +148,8 @@
 | Backend         | Python + FastAPI             |
 | Datenbank       | PostgreSQL 16 (Docker)       |
 | ORM             | SQLAlchemy 2.0               |
-| KI / LLM       | OpenAI API (GPT-4o) + Google Gemini 2.0 Flash |
-| OCR             | OpenAI Vision + Gemini Vision + PyMuPDF       |
+| KI / LLM       | OpenAI API (GPT-5.3 Codex, GPT-5.2 Codex) via OpenRouter |
+| OCR             | AI Vision OCR (OpenRouter Vision API) + PyMuPDF (PDF→Bilder) |
 | PDF-Verarbeitung| PyMuPDF (fitz)               |
 | PDF-Generierung | ReportLab                    |
 | API-Doku        | Swagger (FastAPI built-in)   |
