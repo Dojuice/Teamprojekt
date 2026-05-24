@@ -10,6 +10,8 @@ import os
 import uuid
 import json
 import shutil
+import re
+import unicodedata
 from pathlib import Path
 from typing import Optional, List
 from pydantic import BaseModel
@@ -208,6 +210,24 @@ def validate_pdf(file: UploadFile) -> Optional[str]:
     return None
 
 
+def _sanitize_filename(name: str) -> str:
+    """Create a filesystem-safe ASCII-ish filename while preserving extension."""
+    base_name = os.path.basename(name or "unknown.pdf")
+    stem, ext = os.path.splitext(base_name)
+
+    normalized = unicodedata.normalize("NFKD", stem)
+    ascii_stem = normalized.encode("ascii", "ignore").decode("ascii")
+    ascii_stem = re.sub(r"[^A-Za-z0-9._-]+", "_", ascii_stem).strip("._-")
+    if not ascii_stem:
+        ascii_stem = "file"
+
+    safe_ext = ext.lower() if ext else ".pdf"
+    if safe_ext != ".pdf":
+        safe_ext = ".pdf"
+
+    return f"{ascii_stem}{safe_ext}"
+
+
 async def save_upload(file: UploadFile, chat_id: int, file_type: str) -> FileUploadResult:
     """Save an uploaded file to the temp directory."""
     chat_dir = UPLOAD_DIR / str(chat_id) / file_type
@@ -216,7 +236,7 @@ async def save_upload(file: UploadFile, chat_id: int, file_type: str) -> FileUpl
     # Generate unique filename to avoid collisions
     # Strip any directory components from the filename (e.g. folder uploads)
     unique_id = uuid.uuid4().hex[:8]
-    base_name = os.path.basename(file.filename or "unknown.pdf")
+    base_name = _sanitize_filename(file.filename or "unknown.pdf")
     safe_name = f"{unique_id}_{base_name}"
     file_path = chat_dir / safe_name
 
@@ -339,6 +359,7 @@ async def evaluate_chat_exams(
 
     exam_files = sorted([f for f in exam_dir.iterdir() if f.is_file() and f.suffix.lower() == ".pdf"])
     solution_files = sorted([f for f in solution_dir.iterdir() if f.is_file() and f.suffix.lower() == ".pdf"])
+
     total_exams = len(exam_files)
 
     async def generate():
@@ -390,6 +411,8 @@ async def evaluate_chat_exams(
                 exam_text = ocr_result["text"]
 
                 print(f"  [OCR] ✓ Methode: {ocr_result['method']}, Seiten: {ocr_result['page_count']}, Zeichen: {len(exam_text)}")
+                if ocr_result.get("has_special_layout"):
+                    print(f"  [OCR] Strukturierte Sonderinhalte erkannt (Tabellen/Diagramme/Mindmaps/etc.)")
 
                 # --- Show extracted text per exercise ---
                 print(f"  [OCR] Extrahierter Text:")

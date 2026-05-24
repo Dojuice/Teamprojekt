@@ -13,10 +13,14 @@ Compares student answers against a model solution and provides:
 
 import os
 import json
+import asyncio
 from typing import List, Optional
 from openai import OpenAI
 
 _client: Optional[OpenAI] = None
+
+EVAL_REQUEST_TIMEOUT_SECONDS = int(os.getenv("EVAL_REQUEST_TIMEOUT_SECONDS", "300"))
+EVAL_MAX_OUTPUT_TOKENS = int(os.getenv("EVAL_MAX_OUTPUT_TOKENS", "4096"))
 
 
 def get_client() -> OpenAI:
@@ -32,6 +36,8 @@ def get_client() -> OpenAI:
         _client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=api_key,
+            timeout=EVAL_REQUEST_TIMEOUT_SECONDS,
+            max_retries=1,
         )
     return _client
 
@@ -41,6 +47,11 @@ EVALUATION_SYSTEM_PROMPT = """Du bist ein erfahrener, fairer Universitäts-Prüf
 Du erhältst:
 1. Die MUSTERLÖSUNG (korrekte Antworten des Professors)
 2. Die STUDENTENANTWORT (handschriftlich extrahierter Text einer Klausur)
+
+Hinweis zur OCR-Ausgabe:
+- Die Eingaben können kanonische Strukturmarker enthalten, z. B. Markdown-Tabellen, LaTeX-Formeln oder Mermaid-Blöcke für Graphen/Mindmaps.
+- Werte diese Marker als semantischen Inhalt aus, nicht als unnötiges Formatierungsrauschen.
+- Wenn eine Struktur vorhanden ist, nutze sie für die Bewertung; wenn nur Fließtext vorhanden ist, behandle ihn normal.
 
 Deine Aufgabe:
 - Extrahiere ZUERST die Punkteverteilung aus der Musterlösung. Die Musterlösung/Klausur definiert, wie viele Punkte jede Aufgabe und Teilaufgabe wert ist. Verwende EXAKT diese Punktzahlen als "points_max" pro Aufgabe.
@@ -133,13 +144,14 @@ async def evaluate_exam(
         user_message += f"\n\n## ZUSÄTZLICHE ANWEISUNGEN:\n{additional_instructions}"
 
     client = get_client()
-    response = client.chat.completions.create(
+    response = await asyncio.to_thread(
+        client.chat.completions.create,
         model=model,
         messages=[
             {"role": "system", "content": EVALUATION_SYSTEM_PROMPT},
             {"role": "user", "content": user_message},
         ],
-        max_tokens=4096,
+        max_tokens=EVAL_MAX_OUTPUT_TOKENS,
         temperature=0.2,
     )
     raw_response = response.choices[0].message.content or "{}"
