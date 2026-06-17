@@ -186,6 +186,23 @@
   border: 1px solid #f5c6cb;
 }
 
+.error-message-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.error-message-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.error-message-body {
+  white-space: pre-wrap;
+}
+
 /* ─── Download button (legacy) ─── */
 .download-button {
   display: inline-flex;

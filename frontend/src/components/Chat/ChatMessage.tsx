@@ -144,6 +144,31 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, grouped = false, gro
   const [displayedText, setDisplayedText] = useState<string>(shouldAnimate ? '' : message.text);
   const [isStreaming, setIsStreaming] = useState<boolean>(shouldAnimate);
 
+  const renderMessageBody = () => {
+    if (message.evaluationResults) {
+      return <EvaluationResultsView results={message.evaluationResults} />;
+    }
+
+    if (message.isError) {
+      return (
+        <div className="error-message-content">
+          <div className="error-message-title">Bewertung abgebrochen</div>
+          <div className="error-message-body">
+            {displayedText}
+            {isStreaming && <span className="streaming-cursor" />}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        {displayedText}
+        {isStreaming && <span className="streaming-cursor" />}
+      </>
+    );
+  };
+
   useEffect(() => {
     if (!shouldAnimate) {
       setDisplayedText(message.text);
@@ -173,14 +198,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, grouped = false, gro
     return (
       <div className="grouped-message-item">
         <div className={`message-text ${message.isError ? 'error-message' : ''}`}>
-          {message.evaluationResults ? (
-            <EvaluationResultsView results={message.evaluationResults} />
-          ) : (
-            <>
-              {displayedText}
-              {isStreaming && <span className="streaming-cursor" />}
-            </>
-          )}
+          {renderMessageBody()}
         </div>
         {renderDownloadButton(message)}
         {renderFiles(message)}
@@ -210,14 +228,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message, grouped = false, gro
       </div>
       <div className="message-content">
         <div className={`message-text ${message.isError ? 'error-message' : ''}`}>
-          {message.evaluationResults ? (
-            <EvaluationResultsView results={message.evaluationResults} />
-          ) : (
-            <>
-              {displayedText}
-              {isStreaming && <span className="streaming-cursor" />}
-            </>
-          )}
+          {renderMessageBody()}
         </div>
         {renderDownloadButton(message)}
         {renderFiles(message)}

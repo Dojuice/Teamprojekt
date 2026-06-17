@@ -331,11 +331,22 @@ def list_chat_files(chat_id: int, db: Session = Depends(get_db)):
     return result
 
 
+def _format_provider_error(error: Exception) -> str:
+    """Convert upstream API errors into a short user-facing message."""
+    error_text = str(error)
+    if "Error code: 402" in error_text or "requires more credits" in error_text:
+        return (
+            "Der Bewertungsdienst von OpenRouter hat keine ausreichenden Credits mehr. "
+            "Bitte später erneut versuchen oder ein Modell mit kleineren max_tokens wählen."
+        )
+    return error_text
+
+
 @app.post("/api/chats/{chat_id}/evaluate")
 async def evaluate_chat_exams(
     chat_id: int,
     additional_instructions: str = Query(default=""),
-    model: str = Query(default="openai/gpt-5.3-codex"),
+    model: str = Query(default="openai/gpt-5.4-mini"),
     db: Session = Depends(get_db),
 ):
     """Evaluate uploaded exams against uploaded solution(s) with streaming progress.
@@ -384,7 +395,7 @@ async def evaluate_chat_exams(
                 print(f"    ✓ Extrahiert ({result['method']}, {result['page_count']} Seiten, {len(result['text'])} Zeichen)")
             except Exception as e:
                 print(f"    ✗ FEHLER: {str(e)}")
-                yield json.dumps({"type": "error", "message": f"Fehler beim Lesen der Musterlösung {sol_file.name}: {str(e)}"}) + "\n"
+                yield json.dumps({"type": "error", "message": f"Fehler beim Lesen der Musterlösung {sol_file.name}: {_format_provider_error(e)}"}) + "\n"
                 return
 
         if not solution_texts:
@@ -457,11 +468,12 @@ async def evaluate_chat_exams(
 
             except Exception as e:
                 print(f"  ✗ FEHLER bei {original_name}: {str(e)}")
+                user_message = _format_provider_error(e)
                 results.append({
                     "filename": original_name,
                     "status": "error",
-                    "error": str(e),
-                    "formatted_text": f"Fehler bei der Bewertung von {original_name}: {str(e)}",
+                    "error": user_message,
+                    "formatted_text": f"Fehler bei der Bewertung von {original_name}: {user_message}",
                 })
 
         # Step 4: Generate summary
