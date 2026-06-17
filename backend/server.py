@@ -34,6 +34,12 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="AutoExam API", version="1.0.0")
 
+# Warn early if API key for OpenRouter/OpenAI is not provided
+if not (os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")):
+    print("WARNING: OPENROUTER_API_KEY (or OPENAI_API_KEY) is not set. OCR and evaluation will fail.\n"
+          "Create backend/.env from backend/.env.example and set OPENROUTER_API_KEY=<your_key>,\n"
+          "or provide the key via your container/orchestrator environment.")
+
 # CORS middleware to allow frontend to communicate with backend
 app.add_middleware(
     CORSMiddleware,

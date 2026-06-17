@@ -27,10 +27,12 @@ def get_client() -> OpenAI:
     """Get or create the OpenRouter client (OpenAI-compatible)."""
     global _client
     if _client is None:
-        api_key = os.getenv("OPENROUTER_API_KEY")
+        # Prefer explicit OpenRouter key, but allow an OpenAI-compatible key as fallback
+        api_key = os.getenv("OPENROUTER_API_KEY") or os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise RuntimeError(
-                "OPENROUTER_API_KEY environment variable is not set. "
+                "OPENROUTER_API_KEY (or OPENAI_API_KEY) is not set. "
+                "Create a backend/.env from backend/.env.example and set OPENROUTER_API_KEY=<your_key>. "
                 "Get a free key at https://openrouter.ai/keys"
             )
         _client = OpenAI(
